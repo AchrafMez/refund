@@ -15,7 +15,6 @@ function LoginContent() {
     if (error === "auth_required") {
       setErrorMessage("Session expired. Please sign in again.")
       setShowError(true)
-      // Auto-hide after 5 seconds
       const timer = setTimeout(() => setShowError(false), 5000)
       return () => clearTimeout(timer)
     }
@@ -23,7 +22,6 @@ function LoginContent() {
 
   return (
     <>
-      {/* Error Toast */}
       {showError && (
         <div
           style={{
@@ -113,10 +111,10 @@ function LoginContent() {
                 gap: '0.5rem'
               }}
             >
-              <img 
-                src="/1337.png" 
-                alt="Logo" 
-                style={{ height: '1.5rem', width: 'auto' }} 
+              <img
+                src="/1337.png"
+                alt="Logo"
+                style={{ height: '1.5rem', width: 'auto' }}
               />
               Refunds
             </h1>
@@ -143,10 +141,21 @@ function LoginContent() {
               transition: 'all 150ms'
             }}
             onClick={async () => {
-              await signIn.social({
-                provider: "42-school",
-                callbackURL: "/student"
-              })
+              try {
+                await signIn.social({
+                  provider: "42-school",
+                  callbackURL: "/student"
+                }, {
+                  onError: (ctx: any) => {
+                    setErrorMessage(ctx.error.message || "Failed to sign in")
+                    setShowError(true)
+                  }
+                })
+              } catch (err) {
+                console.error("Sign in error:", err)
+                setErrorMessage("An unexpected error occurred")
+                setShowError(true)
+              }
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#27272a'
