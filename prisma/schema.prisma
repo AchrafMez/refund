@@ -1,0 +1,145 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+// User Roles from backend.md
+enum Role {
+  STUDENT
+  STAFF
+  ADMIN
+}
+
+enum RefundType {
+  EQUIPMENT
+  CERTIFICATION
+  TRAVEL
+  OTHER
+}
+
+enum RefundStatus {
+  ESTIMATED
+  DECLINED
+  PENDING_RECEIPTS
+  VERIFIED_READY
+  PAID
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified Boolean?
+  
+  // Custom fields
+  intraId       String?   @unique
+  role          Role      @default(STUDENT)
+  
+  requests      RefundRequest[]
+  notifications Notification[]
+  sessions      Session[]
+  accounts      Account[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+model RefundRequest {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  
+  type        RefundType
+  
+  title       String
+  description String?
+  amountEst   Float        
+  receiptUrl  String?
+  
+  status      RefundStatus @default(ESTIMATED)
+  
+  staffNote   String?
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum NotificationType {
+  NEW_REQUEST
+  RECEIPT_UPLOADED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title     String
+  message   String
+  type      NotificationType
+  read      Boolean          @default(false)
+  
+  refundId  String?
+  
+  createdAt DateTime         @default(now())
+  
+  @@map("notification")
+}

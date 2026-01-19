@@ -1,0 +1,86 @@
+/* Google Fonts - Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   STRICT ZINC PALETTE - Linear/Vercel Style
+   ========================================
+   Canvas/Page BG: zinc-50 (#fafafa)
+   Surface/Cards: white (#ffffff) + border zinc-200 (#e4e4e7)
+   Primary Text: zinc-900 (#18181b)
+   Secondary Text: zinc-500 (#71717a)
+   Primary Brand: zinc-900 (#18181b)
+   ======================================== */
+
+:root {
+  --radius: 0.5rem;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  
+  /* Zinc Palette */
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #18181b;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #18181b;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    box-sizing: border-box;
+  }
+  
+  html {
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Utility classes for Zinc palette */
+@layer utilities {
+  .text-primary-zinc {
+    color: #18181b;
+  }
+  .text-secondary-zinc {
+    color: #71717a;
+  }
+  .bg-canvas {
+    background-color: #fafafa;
+  }
+  .bg-surface {
+    background-color: #ffffff;
+  }
+  .border-subtle {
+    border-color: #e4e4e7;
+  }
+}
