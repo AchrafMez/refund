@@ -1,1 +1,36 @@
+# Environment files (keep .env.example)
 .env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+out/
+
+# Production build
+build/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database backups
+backups/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal

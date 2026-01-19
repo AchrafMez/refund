@@ -22,23 +22,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    env_file:
+      - .env
     environment:
+      # Override .env values for Docker context
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/local_db
       - DIRECT_URL=postgresql://postgres:postgres@db:5432/local_db
-    env_file:
-      - .env
     volumes:
       - .:/app
       - /app/node_modules
       - /app/.next
     ports:
       - "3000:3000"
-      - "5555:5555"  #studio
+      - "5555:5555"  # Prisma Studio
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+    restart: unless-stopped
 
 volumes:
   postgres_data_dev:
