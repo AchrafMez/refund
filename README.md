@@ -8,96 +8,162 @@ A financial reimbursement tracking platform for the 1337/42 school ecosystem. St
 - **Role-based access** - Students submit requests, Staff review them
 - **Status tracking** - Track requests through the approval pipeline
 - **Receipt upload** - Upload receipts for verification
-- **Real-time updates** - Auto-refreshing dashboards
+- **Real-time updates** - Auto-refreshing dashboards with WebSocket
 - **Notifications** - In-app notifications for status changes
-- **PDF Export** - Staff can export reports
+- **PDF Export** - Download request summaries
+- **Analytics** - Staff dashboard with charts and insights
 
-## Quick Start (Docker)
+## Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- 42 OAuth application credentials (get from [42 Intra](https://profile.intra.42.fr/oauth/applications))
+- **Docker & Docker Compose** installed
+- **42 OAuth credentials** - Get from [42 Intra OAuth Apps](https://profile.intra.42.fr/oauth/applications)
 
-### Setup
+### Setup Steps
 
 1. **Clone the repository**
    ```bash
    git clone <repo-url>
-   cd refund-med
+   cd reftofund
    ```
 
 2. **Configure environment**
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` and add your 42 OAuth credentials:
-   - `AUTH_42_SCHOOL_ID` - Your 42 OAuth client ID
-   - `AUTH_42_SCHOOL_SECRET` - Your 42 OAuth client secret
-   - `AUTH_SECRET` - Generate with: `openssl rand -base64 32`
-
-3. **Deploy (Production)**
-   ```bash
-   docker compose up -d
-   ```
    
-   This will:
-   - Build optimized production image
-   - Start PostgreSQL database
-   - Run database migrations
-   - Start the Next.js production server
+   **Edit `.env` and set:**
+   ```env
+   # Generate with: openssl rand -base64 32
+   AUTH_SECRET=your_generated_secret_here
+   
+   # Get from https://profile.intra.42.fr/oauth/applications
+   AUTH_42_SCHOOL_ID=your_42_oauth_client_id
+   AUTH_42_SCHOOL_SECRET=your_42_oauth_client_secret
+   
+   # Database (use defaults for local development)
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5433/local_db
+   DIRECT_URL=postgresql://postgres:postgres@localhost:5433/local_db
+   ```
 
-4. **Access the app**
-   - App: http://localhost:3000
+3. **Choose your environment:**
 
-### Development Mode
+   ### Option A: Production (Docker - Recommended for Deployment)
+   ```bash
+   docker compose up -d --build
+   ```
+   Runs optimized production build with automatic migrations.
+   
+   ### Option B: Development (Local - Recommended for Development)
+   ```bash
+   # Start database and Redis
+   docker compose up -d db redis
+   
+   # Install dependencies
+   npm install
+   
+   # Initialize database
+   npx prisma db push
+   
+   # Start dev server
+   npm run dev
+   ```
+   Runs with hot-reload on http://localhost:3000
 
-For development with hot reload:
+4. **Configure 42 OAuth Redirect URI**
+   
+   In your 42 OAuth application settings, add:
+   ```
+   http://localhost:3000/api/auth/callback/42-school
+   ```
+
+5. **Access the application**
+   - **App**: http://localhost:3000
+   - **Prisma Studio** (dev only): http://localhost:5555 (run `npx prisma studio`)
+
+## Development Commands
+
 ```bash
-docker compose -f docker-compose.dev.yml up
-```
+# Start dev server (after setting up DB)
+npm run dev
 
-### OAuth Callback URL
+# Generate Prisma client after schema changes
+npx prisma generate
 
-When creating your 42 OAuth application, set the redirect URI to:
-```
-http://localhost:3000/api/auth/callback/42-school
-```
-
-## Development (Without Docker)
-
-```bash
-# Install dependencies
-npm install
-
-# Start PostgreSQL (or use Docker for just the DB)
-docker compose up db
-
-# Push database schema
+# Push schema changes to database
 npx prisma db push
 
-# Start dev server
-npm run dev
+# Open Prisma Studio (database GUI)
+npx prisma studio
+
+# Run production build locally
+npm run build
+npm start
+```
+
+## Troubleshooting
+
+### "Can't reach database server"
+- Make sure Docker containers are running: `docker ps`
+- Start database: `docker compose up -d db redis`
+- Check connection: `docker logs refund-med-db`
+
+### Permission errors with node_modules or .next
+```bash
+# Remove and reinstall
+rm -rf node_modules .next
+npm install
+```
+
+### Prisma Client out of sync
+```bash
+npx prisma generate
+npx prisma db push
 ```
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
+- **Framework**: Next.js 16 (App Router, Turbopack)
 - **Auth**: Better-Auth with 42 OAuth
-- **Database**: PostgreSQL + Prisma ORM
+- **Database**: PostgreSQL 16 + Prisma ORM
+- **Cache/Queue**: Redis + BullMQ
+- **Real-time**: WebSocket server
 - **Styling**: Tailwind CSS + Shadcn/UI
-- **State**: React Query + Zustand
+- **State**: TanStack Query + Zustand
 
 ## Project Structure
 
 ```
 src/
-├── actions/      # Server actions (API logic)
+├── actions/      # Server actions (database operations)
 ├── app/          # Next.js App Router pages
+│   ├── (auth)/   # Auth pages (login)
+│   └── (dashboard)/ # Protected pages (student/staff)
 ├── components/   # React components
-├── lib/          # Utilities (auth, prisma, etc.)
-├── store/        # Zustand stores
-└── types/        # TypeScript types
+│   ├── ui/       # Shadcn UI components
+│   ├── student/  # Student-specific components
+│   └── staff/    # Staff-specific components
+├── lib/          # Core utilities (auth, prisma, websocket)
+├── store/        # Zustand state stores
+└── types/        # TypeScript type definitions
+
+prisma/
+└── schema.prisma # Database schema
+
+scripts/
+└── docker-entrypoint-prod.sh # Production startup script
 ```
+
+## Environment Variables
+
+See `.env.example` for all available options. Key variables:
+
+- `AUTH_SECRET` - Session encryption key
+- `AUTH_42_SCHOOL_ID` - 42 OAuth client ID
+- `AUTH_42_SCHOOL_SECRET` - 42 OAuth client secret
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection (optional, for queues)
+- `NEXT_PUBLIC_BETTER_AUTH_URL` - Auth API URL
 
 ## License
 

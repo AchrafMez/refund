@@ -39,8 +39,10 @@ export const notificationQueue = new Queue<NotificationJobData, unknown, Notific
  */
 export async function queueNotification(data: NotificationJobData) {
     try {
+        // Replace colons with dashes in job ID (BullMQ doesn't allow colons)
+        const safeType = data.type.replace(/:/g, "-")
         const job = await notificationQueue.add(data.type, data, {
-            jobId: `${data.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            jobId: `${safeType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         })
         console.log(`[Queue] Added job ${job.id}: ${data.type}`)
         return job

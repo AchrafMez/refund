@@ -11,18 +11,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query" // Removed useS
 // Types
 interface RefundRequest {
     id: string
+    userId: string
     user: {
         name: string | null
         email: string
         image: string | null
     }
     title: string
-    description: string
+    description: string | null
     amountEst: number
     createdAt: Date
+    updatedAt: Date
     status: string
     type: string
-    receiptUrl?: string | null
+    receiptUrl: string | null
+    staffNote: string | null
 }
 
 interface TabCounts {
@@ -48,37 +51,32 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
     const searchParams = useSearchParams()
     const router = useRouter()
     const tabFromUrl = searchParams.get('tab') as TabId | null
-    
-    // State for pagination
+
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
 
     const [activeTab, setActiveTab] = useState<TabId>(
-        tabFromUrl === 'receipts' ? 'receipts' : 
-        tabFromUrl === 'payouts' ? 'payouts' : 
-        'estimates'
+        tabFromUrl === 'receipts' ? 'receipts' :
+            tabFromUrl === 'payouts' ? 'payouts' :
+                'estimates'
     )
 
-    // Update tab when URL changes
     useEffect(() => {
         if (tabFromUrl && tabFromUrl !== activeTab) {
             setActiveTab(tabFromUrl)
-            setPage(1) // Reset page on tab switch
+            setPage(1) 
         }
     }, [tabFromUrl])
 
-    // Fetch Counts
     const { data: counts } = useQuery({
         queryKey: ["staffTabCounts"],
         queryFn: getStaffTabCounts,
         initialData: initialCounts
     })
 
-    // Fetch Tab Data
     const { data: currentTabData, isLoading } = useQuery({
         queryKey: ["refunds", { status: activeTab, page, pageSize }],
         queryFn: () => getAllRefundRequests({ page, pageSize, statusFilter: activeTab }),
-        // Only use initialData for the first tab/page load to avoid stale data on tab switch
         initialData: (activeTab === 'estimates' && page === 1) ? initialData : undefined,
     })
 
@@ -97,17 +95,16 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
         setPage(1)
     }
 
-    // Default empty result if data is loading or undefined
-    const displayData = currentTabData || { 
-        data: [], 
-        pagination: { 
-            page, 
-            pageSize, 
-            totalItems: 0, 
-            totalPages: 0, 
-            hasNext: false, 
-            hasPrev: false 
-        } 
+    const displayData = currentTabData || {
+        data: [],
+        pagination: {
+            page,
+            pageSize,
+            totalItems: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false
+        }
     }
 
     const getContent = () => {
@@ -123,13 +120,13 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
             return (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
                     <div style={{ textAlign: 'center' }}>
-                        <div style={{ 
-                            backgroundColor: '#f4f4f5', 
-                            width: '3rem', 
-                            height: '3rem', 
-                            borderRadius: '50%', 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                        <div style={{
+                            backgroundColor: '#f4f4f5',
+                            width: '3rem',
+                            height: '3rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'center',
                             margin: '0 auto 1rem'
                         }}>
@@ -179,7 +176,6 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Responsive Styles */}
             <style>{`
                 .staff-tabs {
                     display: flex;
@@ -885,20 +881,20 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                             marginTop: '0.5rem'
                         }}>
                             {previewError ? (
-                                <div style={{ 
-                                    padding: '2rem', 
-                                    textAlign: 'center', 
-                                    backgroundColor: '#fafafa', 
+                                <div style={{
+                                    padding: '2rem',
+                                    textAlign: 'center',
+                                    backgroundColor: '#fafafa',
                                     color: '#71717a',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
                                     gap: '0.75rem'
                                 }}>
-                                    <div style={{ 
-                                        padding: '0.75rem', 
-                                        borderRadius: '50%', 
-                                        backgroundColor: '#fee2e2' 
+                                    <div style={{
+                                        padding: '0.75rem',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#fee2e2'
                                     }}>
                                         <EyeOff style={{ width: '1.25rem', height: '1.25rem', color: '#dc2626' }} />
                                     </div>

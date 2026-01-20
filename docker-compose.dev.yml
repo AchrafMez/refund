@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
     volumes:
       - redis_data_dev:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -45,11 +45,11 @@ services:
       - REDIS_URL=redis://redis:6379
     volumes:
       - .:/app
-      - /app/node_modules
-      - /app/.next
+      - node_modules_dev:/app/node_modules
+      - next_cache_dev:/app/.next
     ports:
       - "3000:3000"
-      - "5555:5555"  # Prisma Studio
+      - "5555:5555" # Prisma Studio
       - "5000:5000"
     depends_on:
       db:
@@ -61,4 +61,7 @@ services:
 volumes:
   postgres_data_dev:
   redis_data_dev:
+  node_modules_dev:
+  next_cache_dev:
+
 
