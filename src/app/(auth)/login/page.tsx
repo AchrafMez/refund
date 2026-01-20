@@ -15,6 +15,7 @@ function LoginContent() {
     if (error === "auth_required") {
       setErrorMessage("Session expired. Please sign in again.")
       setShowError(true)
+      // Auto-hide after 5 seconds
       const timer = setTimeout(() => setShowError(false), 5000)
       return () => clearTimeout(timer)
     }
@@ -22,6 +23,7 @@ function LoginContent() {
 
   return (
     <>
+      {/* Error Toast */}
       {showError && (
         <div
           style={{
@@ -141,19 +143,17 @@ function LoginContent() {
               transition: 'all 150ms'
             }}
             onClick={async () => {
+              console.log("[Auth] Sign in button clicked")
+              console.log("[Auth] NEXT_PUBLIC_BETTER_AUTH_URL:", process.env.NEXT_PUBLIC_BETTER_AUTH_URL)
               try {
                 await signIn.social({
                   provider: "42-school",
                   callbackURL: "/student"
-                }, {
-                  onError: (ctx: any) => {
-                    setErrorMessage(ctx.error.message || "Failed to sign in")
-                    setShowError(true)
-                  }
                 })
-              } catch (err) {
-                console.error("Sign in error:", err)
-                setErrorMessage("An unexpected error occurred")
+                console.log("[Auth] signIn.social completed")
+              } catch (error) {
+                console.error("[Auth] Sign in error:", error)
+                setErrorMessage("Failed to initiate sign in. Check console for details.")
                 setShowError(true)
               }
             }}

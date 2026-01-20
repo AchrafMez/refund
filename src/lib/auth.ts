@@ -12,22 +12,21 @@ type GlobalWithAuth = typeof globalThis & {
 const globalForAuth = globalThis as GlobalWithAuth;
 
 function createAuthInstance() {
-  const isProduction =process.env.NODE_ENV === "production" || !!process.env.VERCEL;
-
   const baseURL =
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-    (isProduction
-      ? "https://refund-med.vercel.app"
-      : "http://localhost:3000");
+    "http://localhost:3000";
 
   return betterAuth({
     baseURL,
 
     trustedOrigins: [
       "http://localhost:3000",
-      "https://refund-med.vercel.app",
     ],
+
+    pages: {
+      error: "/error",
+    },
 
     database: prismaAdapter(prisma, {
       provider: "postgresql",
@@ -84,4 +83,4 @@ function createAuthInstance() {
   });
 }
 
-export const auth =globalForAuth[AUTH_KEY] ?? (globalForAuth[AUTH_KEY] = createAuthInstance());
+export const auth = globalForAuth[AUTH_KEY] ?? (globalForAuth[AUTH_KEY] = createAuthInstance());
