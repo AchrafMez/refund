@@ -14,10 +14,6 @@ services:
       timeout: 5s
       retries: 5
     restart: always
-    # Don't expose port externally in production for security
-    # ports:
-    #   - "5432:5432"
-
   app:
     container_name: refund-med-app
     build:

@@ -25,13 +25,9 @@ services:
     env_file:
       - .env
     environment:
-      # Override .env values for Docker production context
       - NODE_ENV=production
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-refund_med}
       - DIRECT_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-refund_med}
-      # These should be set via .env or deployment platform for your domain
-      # - BETTER_AUTH_URL=https://your-domain.com
-      # - NEXT_PUBLIC_BETTER_AUTH_URL=https://your-domain.com
     ports:
       - "3000:3000"
     depends_on:
