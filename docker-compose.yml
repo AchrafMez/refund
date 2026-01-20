@@ -17,6 +17,20 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: refund-med-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   app:
     container_name: refund-med-app
     build:
@@ -28,10 +42,14 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-refund_med}
       - DIRECT_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-refund_med}
+      - REDIS_URL=redis://redis:6379
     ports:
       - "3000:3000"
+      - "5000:5000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: always
     deploy:
@@ -49,3 +67,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

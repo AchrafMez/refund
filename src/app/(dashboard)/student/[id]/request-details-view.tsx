@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useRef } from "react"
 import Link from "next/link"
 import { submitReceipt, getRefundRequestById } from "@/actions/refunds"
+import { useQuery } from "@tanstack/react-query"
 
 import { StatusBadge, RequestStatus } from "@/components/status-badge"
 import { ReceiptUpload } from "@/components/student/receipt-upload"
@@ -80,40 +81,34 @@ const getTimelineSteps = (status: RequestStatus, createdDate: string) => {
 }
 
 export function RequestDetailsView({ request: initialRequest }: RequestDetailsViewProps) {
-    const [request, setRequest] = useState(initialRequest)
-    const [status, setStatus] = useState<RequestStatus>(initialRequest.status as RequestStatus)
     const printRef = useRef<HTMLDivElement>(null)
 
-    // Sync status with request changes
-    useEffect(() => {
-        setStatus(request.status as RequestStatus)
-    }, [request.status])
+    // Use Query for real-time data
+    const { data: request } = useQuery({
+        queryKey: ["refund", initialRequest.id],
+        queryFn: async () => {
+             const updated = await getRefundRequestById(initialRequest.id)
+             if (!updated) throw new Error("Request not found")
+             return {
+                id: updated.id,
+                title: updated.title,
+                amount: updated.amountEst,
+                date: updated.createdAt.toISOString(),
+                status: updated.status,
+                category: updated.type,
+                description: updated.description,
+                receiptUrl: updated.receiptUrl,
+                user: updated.user
+             }
+        },
+        initialData: initialRequest
+    })
 
-    // Auto-refresh request data every 3 seconds
-    useEffect(() => {
-        const interval = setInterval(async () => {
-            const updated = await getRefundRequestById(request.id)
-            if (updated) {
-                setRequest({
-                    id: updated.id,
-                    title: updated.title,
-                    amount: updated.amountEst,
-                    date: updated.createdAt.toISOString(),
-                    status: updated.status,
-                    category: updated.type,
-                    description: updated.description,
-                    receiptUrl: updated.receiptUrl,
-                    user: updated.user
-                })
-            }
-        }, 1000)
-
-        return () => clearInterval(interval)
-    }, [request.id])
+    const status = request.status as RequestStatus
 
     const handleUploadSuccess = async (url: string) => {
         await submitReceipt(request.id, url)
-        setStatus("VERIFIED_READY")
+        // No need to manually set status, WebSocket will trigger invalidation
     }
 
     const timelineSteps = getTimelineSteps(status, request.date)

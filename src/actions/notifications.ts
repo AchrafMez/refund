@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
+import { emitNotificationNew, emitToStaff } from "@/lib/ws-emitter"
 
 export async function getNotifications() {
     const session = await auth.api.getSession({
@@ -89,7 +90,7 @@ export async function createNotification(data: {
     type: "NEW_REQUEST" | "APPROVED" | "REJECTED" | "PAID"
     refundId?: string
 }) {
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
         data: {
             userId: data.userId,
             title: data.title,
@@ -97,6 +98,16 @@ export async function createNotification(data: {
             type: data.type,
             refundId: data.refundId
         }
+    })
+
+    // Emit WebSocket event for real-time updates
+    emitNotificationNew(data.userId, {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        refundId: notification.refundId,
+        createdAt: notification.createdAt
     })
 }
 
@@ -133,6 +144,14 @@ export async function notifyAllStaff(data: {
 
         await prisma.notification.createMany({
             data: notifications
+        })
+
+        // Emit WebSocket event to staff room for real-time updates
+        emitToStaff("notification:new", {
+            title: data.title,
+            message: data.message,
+            type: data.type,
+            refundId: data.refundId
         })
     } catch (error) {
         // Silent fail for notifications - don't break main flow

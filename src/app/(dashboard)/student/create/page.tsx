@@ -288,7 +288,7 @@ export default function CreateRequestPage() {
         <AlertCircle className="warning-icon" size={18} />
         <p className="warning-text">
           <strong>Important:</strong> Please ensure your submission is valid and accurate. 
-          Submitting a request that does not make sense will lead to the proper punishment.
+          Submitting a request that does not make sense will lead to severe punishment.
         </p>
       </div>
     </div>

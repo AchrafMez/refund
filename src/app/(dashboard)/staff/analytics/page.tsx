@@ -18,6 +18,7 @@ import { getAnalyticsData, type AnalyticsStats, type TimelineItem } from "@/acti
 import { getExportData } from "@/actions/export-pdf"
 import { ExportButton } from "@/components/export-button"
 import { useState, useRef, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 
 // --- Generic Helper for Dates ---
 const formatDate = (date: Date) => {
@@ -294,15 +295,6 @@ export default function AnalyticsPage() {
   const [daysWindow, setDaysWindow] = useState(45)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  const [timelineData, setTimelineData] = useState<TimelineItem[]>([])
-  const [statsData, setStatsData] = useState<AnalyticsStats>({
-    totalRequests: 0,
-    pendingApproval: 0,
-    totalPayouts: 0,
-    avgProcessingTime: 0
-  })
-  const [isLoading, setIsLoading] = useState(false)
-
   // Date Filter State
   const [showCalendar, setShowCalendar] = useState(false)
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
@@ -319,29 +311,35 @@ export default function AnalyticsPage() {
     { value: 'OTHER', label: 'Other Expenses' }
   ]
 
-  // Fetch Data
-  useEffect(() => {
-    async function fetchData() {
-      if (!dateRange.start || !dateRange.end) return
-
-      setIsLoading(true)
-      try {
-        const { stats, timeline } = await getAnalyticsData(dateRange.start, dateRange.end, selectedTypes)
-        setStatsData(stats)
-        // Ensure dates are actual Date objects
-        setTimelineData(timeline.map((item: any) => ({
+  // Fetch Data using TanStack Query
+  const { data: analyticsData, isLoading } = useQuery({
+    queryKey: ['analytics', { 
+      start: dateRange.start?.toISOString(), 
+      end: dateRange.end?.toISOString(), 
+      types: selectedTypes 
+    }],
+    queryFn: async () => {
+      if (!dateRange.start || !dateRange.end) return null
+      const data = await getAnalyticsData(dateRange.start, dateRange.end, selectedTypes)
+      return {
+        stats: data.stats,
+        timeline: data.timeline.map((item: any) => ({
           ...item,
           submittedAt: new Date(item.submittedAt),
           completedAt: item.completedAt ? new Date(item.completedAt) : null
-        })))
-      } catch (error) {
-        console.error("Failed to fetch analytics:", error)
-      } finally {
-        setIsLoading(false)
+        }))
       }
-    }
-    fetchData()
-  }, [dateRange, selectedTypes])
+    },
+    enabled: !!dateRange.start && !!dateRange.end
+  })
+
+  const timelineData = analyticsData?.timeline || []
+  const statsData = analyticsData?.stats || {
+    totalRequests: 0,
+    pendingApproval: 0,
+    totalPayouts: 0,
+    avgProcessingTime: 0
+  }
 
   const stats = [
     {

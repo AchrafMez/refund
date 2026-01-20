@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Bell, Check, CheckCheck, FileText, AlertCircle, CreditCard, X, Upload, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, clearAllNotifications } from "@/actions/notifications"
 
 
@@ -18,12 +19,24 @@ interface Notification {
 
 export function NotificationBell() {
     const [isOpen, setIsOpen] = useState(false)
-    const [notifications, setNotifications] = useState<Notification[]>([])
-    const [unreadCount, setUnreadCount] = useState(0)
-    const [isLoading, setIsLoading] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
+    const queryClient = useQueryClient()
+
+    // TanStack Query for notifications (replaces polling)
+    const { data: notifications = [], isLoading } = useQuery({
+        queryKey: ["notifications"],
+        queryFn: getNotifications,
+        staleTime: 30000, // Consider data fresh for 30 seconds
+    })
+
+    // TanStack Query for unread count
+    const { data: unreadCount = 0 } = useQuery({
+        queryKey: ["notificationCount"],
+        queryFn: getUnreadCount,
+        staleTime: 30000,
+    })
 
     useEffect(() => {
         const checkMobile = () => {
@@ -34,27 +47,9 @@ export function NotificationBell() {
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
-    // Fetch unread count on mount and subscribe to real-time updates
-    useEffect(() => {
-        const fetchCount = async () => {
-            const count = await getUnreadCount()
-            setUnreadCount(count)
-        }
-        fetchCount()
-
-        const interval = setInterval(() => {
-            fetchCount()
-            if (isOpen) {
-                getNotifications().then(setNotifications)
-            }
-        }, 100)
-
-        return () => clearInterval(interval)
-    }, [isOpen])
-
     useEffect(() => {
         if (isOpen && notifications.length > 0) {
-            const unreadNotifications = notifications.filter(n => !n.read)
+            const unreadNotifications = notifications.filter((n: Notification) => !n.read)
 
             if (unreadNotifications.length > 0) {
                 const timer = setTimeout(async () => {
@@ -66,17 +61,6 @@ export function NotificationBell() {
         }
     }, [isOpen, notifications])
 
-    const hasFetched = useRef(false)
-    useEffect(() => {
-        if (!hasFetched.current) {
-            setIsLoading(true)
-            getNotifications().then((data) => {
-                setNotifications(data)
-                setIsLoading(false)
-                hasFetched.current = true
-            })
-        }
-    }, [])
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -90,11 +74,10 @@ export function NotificationBell() {
 
     const handleNotificationClick = async (notification: Notification) => {
         if (!notification.read) {
-            setNotifications(prev =>
-                prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-            )
-            setUnreadCount(prev => Math.max(0, prev - 1))
             markAsRead(notification.id).catch(console.error)
+            // Invalidate queries to refetch updated data
+            queryClient.invalidateQueries({ queryKey: ["notifications"] })
+            queryClient.invalidateQueries({ queryKey: ["notificationCount"] })
         }
 
         setIsOpen(false)
@@ -110,14 +93,16 @@ export function NotificationBell() {
 
     const handleMarkAllAsRead = async () => {
         await markAllAsRead()
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-        setUnreadCount(0)
+        // Invalidate queries to refetch updated data
+        queryClient.invalidateQueries({ queryKey: ["notifications"] })
+        queryClient.invalidateQueries({ queryKey: ["notificationCount"] })
     }
 
     const handleClearAll = async () => {
         await clearAllNotifications()
-        setNotifications([])
-        setUnreadCount(0)
+        // Invalidate queries to refetch updated data
+        queryClient.invalidateQueries({ queryKey: ["notifications"] })
+        queryClient.invalidateQueries({ queryKey: ["notificationCount"] })
     }
 
     const getIcon = (type: string) => {

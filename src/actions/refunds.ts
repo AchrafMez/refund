@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { createNotification, notifyAllStaff } from "./notifications"
+import { emitRefundNew, emitRefundUpdated, emitReceiptUploaded } from "@/lib/ws-emitter"
 import { 
     PaginationParams, 
     PaginatedResult, 
@@ -91,6 +92,17 @@ export async function createEstimate(data: {
             refundId: request.id
         })
     }
+
+    // Emit WebSocket event for real-time updates
+    emitRefundNew({
+        id: request.id,
+        userId: request.userId,
+        title: request.title,
+        type: request.type,
+        amountEst: request.amountEst,
+        status: request.status,
+        createdAt: request.createdAt
+    })
 
     return request
 }
@@ -282,6 +294,13 @@ export async function updateRefundStatus(
                 type: "APPROVED",
                 refundId: id
             })
+
+            // Emit WebSocket event
+            emitRefundUpdated(request.userId, {
+                refundId: id,
+                status: "VERIFIED_READY",
+                receiptUrl: request.receiptUrl
+            })
             return
         }
 
@@ -310,6 +329,13 @@ export async function updateRefundStatus(
             refundId: id
         })
     }
+
+    // Emit WebSocket event for status update
+    emitRefundUpdated(request.userId, {
+        refundId: id,
+        status: newStatus,
+        receiptUrl: request.receiptUrl
+    })
 }
 
 export async function submitReceipt(id: string, receiptUrl: string) {
@@ -349,6 +375,19 @@ export async function submitReceipt(id: string, receiptUrl: string) {
             message: `${session.user.name || session.user.email} uploaded a receipt for "${request.title}"`,
             type: "RECEIPT_UPLOADED",
             refundId: id
+        })
+
+        // Emit WebSocket event for receipt upload
+        emitReceiptUploaded({
+            refundId: id,
+            userId: request.userId,
+            title: request.title
+        })
+
+        emitRefundUpdated(request.userId, {
+            refundId: id,
+            status: "VERIFIED_READY",
+            receiptUrl: receiptUrl
         })
     } else {
         console.error(`[submitReceipt] Failed to find request ${id} for notification`)

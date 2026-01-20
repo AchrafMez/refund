@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query" // Added import
 import { FileText } from "lucide-react"
 import { getRefunds } from "@/actions/refunds"
 import { HistoryItem } from "./history-item"
@@ -23,25 +24,27 @@ interface HistoryListProps {
 }
 
 export function HistoryList({ initialData }: HistoryListProps) {
-  const [data, setData] = useState(initialData)
-  const [isLoading, setIsLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
-  const fetchPage = async (page: number, pageSize: number = data.pagination.pageSize) => {
-    setIsLoading(true)
-    try {
-      const result = await getRefunds({ page, pageSize })
-      setData(result as PaginatedResult<RefundRequest>)
-    } finally {
-      setIsLoading(false)
-    }
+  // Use Query for data fetching
+  const { data, isLoading, isPlaceholderData } = useQuery({
+    queryKey: ['student-history', { page, pageSize }],
+    queryFn: () => getRefunds({ page, pageSize }),
+    placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
+    initialData: page === 1 ? (initialData as any) : undefined
+  })
+
+  // Cast back to expected type
+  const result = data as PaginatedResult<RefundRequest> || initialData
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
   }
 
-  const handlePageChange = (page: number) => {
-    fetchPage(page)
-  }
-
-  const handlePageSizeChange = (pageSize: number) => {
-    fetchPage(1, pageSize) // Reset to page 1 when changing page size
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize)
+    setPage(1)
   }
 
   return (
@@ -57,13 +60,13 @@ export function HistoryList({ initialData }: HistoryListProps) {
           borderRadius: '0.75rem',
           boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
           overflow: 'hidden',
-          opacity: isLoading ? 0.7 : 1,
+          opacity: isLoading || isPlaceholderData ? 0.7 : 1,
           transition: 'opacity 150ms'
         }}
       >
-        {data.data.length > 0 ? (
+        {result.data.length > 0 ? (
           <>
-            {data.data.map((request) => (
+            {result.data.map((request) => (
               <HistoryItem key={request.id} request={request} />
             ))}
           </>
@@ -86,7 +89,7 @@ export function HistoryList({ initialData }: HistoryListProps) {
       </div>
 
       <Pagination
-        pagination={data.pagination}
+        pagination={result.pagination}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
       />

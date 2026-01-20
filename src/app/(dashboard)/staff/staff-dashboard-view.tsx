@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useTransition, useRef, useEffect } from "react"
+import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { CheckCircle2, XCircle, FileText, Calendar, User2, Loader2, Download, Eye, EyeOff } from "lucide-react"
 import { updateRefundStatus, rejectReceipt, getAllRefundRequests, getStaffTabCounts } from "@/actions/refunds"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Pagination } from "@/components/ui/pagination"
 import { PaginatedResult, PaginationMeta } from "@/types/pagination"
+import { useQuery, useQueryClient } from "@tanstack/react-query" // Removed useSocket import
 
 // Types
 interface RefundRequest {
@@ -47,118 +48,131 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
     const searchParams = useSearchParams()
     const router = useRouter()
     const tabFromUrl = searchParams.get('tab') as TabId | null
+    
+    // State for pagination
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+
     const [activeTab, setActiveTab] = useState<TabId>(
         tabFromUrl === 'receipts' ? 'receipts' : 
         tabFromUrl === 'payouts' ? 'payouts' : 
         'estimates'
     )
 
-    // Store paginated data for each tab
-    const [tabData, setTabData] = useState<Record<TabId, PaginatedResult<RefundRequest>>>({
-        estimates: initialData,
-        receipts: { data: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0, hasNext: false, hasPrev: false } },
-        payouts: { data: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0, hasNext: false, hasPrev: false } }
-    })
-
-    const [counts, setCounts] = useState<TabCounts>(initialCounts)
-    const [isLoading, setIsLoading] = useState(false)
-    const [loadedTabs, setLoadedTabs] = useState<Set<TabId>>(new Set(['estimates']))
-
     // Update tab when URL changes
     useEffect(() => {
-        if (tabFromUrl === 'receipts') setActiveTab('receipts')
-        else if (tabFromUrl === 'payouts') setActiveTab('payouts')
-        else if (tabFromUrl === 'estimates') setActiveTab('estimates')
+        if (tabFromUrl && tabFromUrl !== activeTab) {
+            setActiveTab(tabFromUrl)
+            setPage(1) // Reset page on tab switch
+        }
     }, [tabFromUrl])
 
-    // Load tab data when switching to unloaded tab
-    useEffect(() => {
-        if (!loadedTabs.has(activeTab)) {
-            fetchTabData(activeTab, 1)
-        }
-    }, [activeTab])
+    // Fetch Counts
+    const { data: counts } = useQuery({
+        queryKey: ["staffTabCounts"],
+        queryFn: getStaffTabCounts,
+        initialData: initialCounts
+    })
 
-    // Periodic refresh of counts and current tab data
-    useEffect(() => {
-        const interval = setInterval(async () => {
-            // Refresh counts
-            const newCounts = await getStaffTabCounts()
-            setCounts(newCounts)
-            
-            // Refresh current tab data (without loading state to avoid flickering)
-            const currentPage = tabData[activeTab].pagination.page
-            const currentPageSize = tabData[activeTab].pagination.pageSize
-            const result = await getAllRefundRequests({ 
-                page: currentPage, 
-                pageSize: currentPageSize, 
-                statusFilter: activeTab 
-            })
-            setTabData(prev => ({
-                ...prev,
-                [activeTab]: result as PaginatedResult<RefundRequest>
-            }))
-        }, 1000) // Refresh every 1 second
-
-        return () => clearInterval(interval)
-    }, [activeTab, tabData])
-
-    const fetchTabData = async (tab: TabId, page: number, pageSize: number = 10) => {
-        setIsLoading(true)
-        try {
-            const result = await getAllRefundRequests({ page, pageSize, statusFilter: tab })
-            setTabData(prev => ({
-                ...prev,
-                [tab]: result as PaginatedResult<RefundRequest>
-            }))
-            setLoadedTabs(prev => new Set([...prev, tab]))
-        } finally {
-            setIsLoading(false)
-        }
-    }
+    // Fetch Tab Data
+    const { data: currentTabData, isLoading } = useQuery({
+        queryKey: ["refunds", { status: activeTab, page, pageSize }],
+        queryFn: () => getAllRefundRequests({ page, pageSize, statusFilter: activeTab }),
+        // Only use initialData for the first tab/page load to avoid stale data on tab switch
+        initialData: (activeTab === 'estimates' && page === 1) ? initialData : undefined,
+    })
 
     const handleTabChange = (tab: TabId) => {
         setActiveTab(tab)
+        setPage(1)
+        router.push(`/staff?tab=${tab}`, { scroll: false })
     }
 
-    const handlePageChange = (page: number) => {
-        fetchTabData(activeTab, page, tabData[activeTab].pagination.pageSize)
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage)
     }
 
-    const handlePageSizeChange = (pageSize: number) => {
-        fetchTabData(activeTab, 1, pageSize)
+    const handlePageSizeChange = (newPageSize: number) => {
+        setPageSize(newPageSize)
+        setPage(1)
     }
 
-    const currentData = tabData[activeTab]
+    // Default empty result if data is loading or undefined
+    const displayData = currentTabData || { 
+        data: [], 
+        pagination: { 
+            page, 
+            pageSize, 
+            totalItems: 0, 
+            totalPages: 0, 
+            hasNext: false, 
+            hasPrev: false 
+        } 
+    }
 
     const getContent = () => {
-        if (isLoading && currentData.data.length === 0) {
+        if (isLoading) {
             return (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-                    <Loader2 style={{ animation: 'spin 1s linear infinite' }} />
+                <div style={{ padding: '4rem 0', display: 'flex', justifyContent: 'center' }}>
+                    <Loader2 className="animate-spin" style={{ width: '1.5rem', height: '1.5rem', color: '#71717a' }} />
                 </div>
             )
         }
 
-        if (currentData.data.length === 0) {
-            const labels: Record<TabId, string> = {
-                estimates: "No pending estimates",
-                receipts: "No receipts to verify",
-                payouts: "No pending payouts"
-            }
-            return <EmptyState label={labels[activeTab]} />
-        }
-
-        const typeMap: Record<TabId, 'estimate' | 'receipt' | 'payout'> = {
-            estimates: 'estimate',
-            receipts: 'receipt',
-            payouts: 'payout'
+        if (displayData.data.length === 0) {
+            return (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ 
+                            backgroundColor: '#f4f4f5', 
+                            width: '3rem', 
+                            height: '3rem', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            margin: '0 auto 1rem'
+                        }}>
+                            <FileText style={{ width: '1.5rem', height: '1.5rem', color: '#a1a1aa' }} />
+                        </div>
+                        <h3 style={{ fontSize: '0.875rem', fontWeight: 500, color: '#18181b' }}>No requests</h3>
+                        <p style={{ fontSize: '0.875rem', color: '#71717a', marginTop: '0.25rem' }}>
+                            There are no requests in this category.
+                        </p>
+                    </div>
+                </div>
+            )
         }
 
         return (
-            <div style={{ opacity: isLoading ? 0.7 : 1, transition: 'opacity 150ms', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {currentData.data.map((req) => (
-                    <InboxCard key={req.id} request={req} type={typeMap[activeTab]} />
-                ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {displayData.data.map((request) => {
+                    return (
+                        <div
+                            key={request.id}
+                            onClick={() => router.push(`/staff/${request.id}`)}
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                textAlign: 'left',
+                                padding: 0,
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {activeTab === 'estimates' ? (
+                                <InboxCard request={request} type="estimate" />
+                            ) : activeTab === 'receipts' ? (
+                                <InboxCard request={request} type="receipt" />
+                            ) : (
+                                <span style={{ opacity: 0.5 }}>
+                                    <InboxCard request={request} type="payout" />
+                                </span>
+                            )}
+                        </div>
+                    )
+                })}
             </div>
         )
     }
@@ -251,9 +265,9 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
             </div>
 
             {/* Pagination */}
-            {currentData.data.length > 0 && (
+            {displayData.data.length > 0 && (
                 <Pagination
-                    pagination={currentData.pagination}
+                    pagination={displayData.pagination}
                     onPageChange={handlePageChange}
                     onPageSizeChange={handlePageSizeChange}
                 />
@@ -321,7 +335,9 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
         setRejectReason("")
     }
 
-    const handleDownloadCard = async () => {
+    const handleDownloadCard = async (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!cardRef.current) return
         try {
             const { jsPDF } = await import('jspdf')
 
@@ -728,7 +744,10 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                     <div style={{ display: 'flex', gap: '0.375rem' }}>
                         {!isEstimate && (
                             <button
-                                onClick={handleDownloadCard}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDownloadCard(e)
+                                }}
                                 title="Download as Image"
                                 style={{
                                     width: '2rem',
@@ -759,7 +778,10 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         )}
                         {request.receiptUrl && (
                             <button
-                                onClick={handlePreviewToggle}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    handlePreviewToggle()
+                                }}
                                 title={showPreview ? 'Hide Receipt Preview' : 'Show Receipt Preview'}
                                 style={{
                                     width: '2rem',
@@ -937,7 +959,10 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                 >
                     {/* Reject button - disabled when waiting for receipt */}
                     <button
-                        onClick={handleReject}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            handleReject()
+                        }}
                         disabled={isPending || request.status === 'PENDING_RECEIPTS'}
                         style={{
                             display: 'flex',
@@ -970,7 +995,10 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         {type === 'receipt' ? 'Reject Receipt' : 'Reject'}
                     </button>
                     <button
-                        onClick={() => handleAction(isEstimate ? "PENDING_RECEIPTS" : "PAID")}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            handleAction(isEstimate ? "PENDING_RECEIPTS" : "PAID")
+                        }}
                         disabled={isPending}
                         style={{
                             display: 'flex',
@@ -1084,35 +1112,3 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     )
 }
 
-function EmptyState({ label }: { label: string }) {
-    return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '3rem',
-                borderRadius: '0.75rem',
-                backgroundColor: 'white',
-                border: '1px dashed #e4e4e7'
-            }}
-        >
-            <div
-                style={{
-                    width: '2.5rem',
-                    height: '2.5rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '50%',
-                    backgroundColor: '#f4f4f5',
-                    marginBottom: '0.75rem'
-                }}
-            >
-                <FileText style={{ width: '1.25rem', height: '1.25rem', color: '#71717a' }} />
-            </div>
-            <p style={{ fontWeight: 500, color: '#71717a', fontSize: '0.875rem' }}>{label}</p>
-        </div>
-    )
-}

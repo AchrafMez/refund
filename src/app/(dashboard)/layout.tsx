@@ -2,6 +2,7 @@ import { Navbar } from "@/components/navbar"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { prisma } from "@/lib/prisma"
+import { DashboardClientWrapper } from "@/components/dashboard-client-wrapper"
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const session = await auth.api.getSession({
@@ -9,12 +10,22 @@ export default async function Layout({ children }: { children: React.ReactNode }
   })
 
   let userRole: string | null = null
+  let sessionToken: string | null = null
+
   if (session) {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { role: true }
     })
     userRole = user?.role || null
+
+    // Get session token for WebSocket authentication
+    const dbSession = await prisma.session.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      select: { token: true }
+    })
+    sessionToken = dbSession?.token || null
   }
 
   return (
@@ -34,9 +45,12 @@ export default async function Layout({ children }: { children: React.ReactNode }
         }}
       >
         <div style={{ maxWidth: '1152px', margin: '0 auto' }}>
-          {children}
+          <DashboardClientWrapper sessionToken={sessionToken}>
+            {children}
+          </DashboardClientWrapper>
         </div>
       </main>
     </div>
   )
 }
+
