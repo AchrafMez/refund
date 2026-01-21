@@ -29,15 +29,15 @@ interface RefundRequest {
 }
 
 interface TabCounts {
-    estimates: number
+    Validation: number
     receipts: number
     payouts: number
 }
 
 const tabs = [
-    { id: "estimates", label: "Estimates" },
-    { id: "receipts", label: "Receipts" },
-    { id: "payouts", label: "Payouts" },
+    { id: "Validation", label: "Validation" },
+    { id: "Processing", label: "Processing" },
+    { id: "Completed", label: "Completed" },
 ] as const
 
 type TabId = typeof tabs[number]["id"]
@@ -58,7 +58,7 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
     const [activeTab, setActiveTab] = useState<TabId>(
         tabFromUrl === 'receipts' ? 'receipts' :
             tabFromUrl === 'payouts' ? 'payouts' :
-                'estimates'
+                'Validation'
     )
 
     useEffect(() => {
@@ -77,7 +77,7 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
     const { data: currentTabData, isLoading } = useQuery({
         queryKey: ["refunds", { status: activeTab, page, pageSize }],
         queryFn: () => getAllRefundRequests({ page, pageSize, statusFilter: activeTab }),
-        initialData: (activeTab === 'estimates' && page === 1) ? initialData : undefined,
+        initialData: (activeTab === 'Validation' && page === 1) ? initialData : undefined,
     })
 
     const handleTabChange = (tab: TabId) => {
@@ -158,7 +158,7 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
                                 cursor: 'pointer'
                             }}
                         >
-                            {activeTab === 'estimates' ? (
+                            {activeTab === 'Validation' ? (
                                 <InboxCard request={request} type="estimate" />
                             ) : activeTab === 'receipts' ? (
                                 <InboxCard request={request} type="receipt" />
@@ -312,7 +312,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     }
 
     const handleReject = () => {
-        // Show dialog for both estimates and receipts to get rejection reason
+        // Show dialog for both Validation and receipts to get rejection reason
         setShowRejectDialog(true)
     }
 
@@ -324,7 +324,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                 router.refresh()
             })
         } else {
-            // For estimates, use updateRefundStatus with DECLINED
+            // For Validation, use updateRefundStatus with DECLINED
             handleAction("DECLINED", rejectReason || undefined)
         }
         setShowRejectDialog(false)

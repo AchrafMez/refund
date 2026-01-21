@@ -31,6 +31,14 @@ enum RefundStatus {
   PAID
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  APPROVE
+  REJECT
+  UPLOAD
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -46,6 +54,7 @@ model User {
   notifications Notification[]
   sessions      Session[]
   accounts      Account[]
+  auditLogs     AuditLog[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -99,6 +108,43 @@ model Verification {
   @@map("verification")
 }
 
+model CertificateCatalog {
+  id        String   @id @default(cuid())
+  name      String
+  provider  String
+  fixedCost Float
+  currency  String   @default("USD")
+  
+  requests  RefundRequest[] // Relation for analytics
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  action    AuditAction // Enum for type safety
+  entityId  String      // requestId
+  details   Json        // Dynamic details
+  createdAt DateTime    @default(now())
+
+  @@index([entityId])
+  @@index([userId])
+}
+
+model Receipt {
+  id              String        @id @default(cuid())
+  url             String
+  amount          Float         @default(0)// Editable amount per receipt
+  refundRequestId String
+  refundRequest   RefundRequest @relation(fields: [refundRequestId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
 model RefundRequest {
   id          String       @id @default(cuid())
   userId      String
@@ -109,7 +155,22 @@ model RefundRequest {
   title       String
   description String?
   amountEst   Float        
-  receiptUrl  String?
+  
+  // Relations
+  receipts           Receipt[]
+  
+  // New fields
+  targetDate         DateTime?
+  departure          String?
+  destination        String?
+  invoiceAddressedTo String?   // "LEET INITIATIVE" or "1337" or null
+  
+  // Cached total for performance (sum of receipts)
+  totalAmount        Float     @default(0) 
+
+  // Analytics Relation
+  certificateId      String?
+  certificate        CertificateCatalog? @relation(fields: [certificateId], references: [id])
   
   status      RefundStatus @default(ESTIMATED)
   
@@ -117,6 +178,11 @@ model RefundRequest {
   
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  // Indexes for performance
+  @@index([userId])
+  @@index([status])
+  @@index([certificateId]) // Index for popular certs query
 }
 
 enum NotificationType {

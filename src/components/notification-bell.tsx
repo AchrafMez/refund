@@ -83,7 +83,7 @@ export function NotificationBell() {
         setIsOpen(false)
 
         if (notification.type === "NEW_REQUEST") {
-            window.location.href = "/staff?tab=estimates"
+            window.location.href = "/staff?tab=Validation"
         } else if (notification.type === "RECEIPT_UPLOADED") {
             window.location.href = "/staff?tab=receipts"
         } else if (notification.refundId) {

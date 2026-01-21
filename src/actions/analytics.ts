@@ -88,3 +88,4 @@ export async function getAnalyticsData(startDate: Date, endDate: Date, types: st
 
     return { stats, timeline }
 }
+export { getCertificateStats } from "@/lib/analytics";

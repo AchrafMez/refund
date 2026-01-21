@@ -123,12 +123,13 @@ npx prisma db push
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router, Turbopack)
+- **Framework**: Next.js 16.1 (App Router, Turbopack)
+- **Runtime**: React 19
 - **Auth**: Better-Auth with 42 OAuth
-- **Database**: PostgreSQL 16 + Prisma ORM
+- **Database**: PostgreSQL + Prisma ORM
 - **Cache/Queue**: Redis + BullMQ
-- **Real-time**: WebSocket server
-- **Styling**: Tailwind CSS + Shadcn/UI
+- **Real-time**: Custom Socket.IO Server
+- **Styling**: Tailwind CSS v4 + Shadcn/UI
 - **State**: TanStack Query + Zustand
 
 ## Project Structure
@@ -138,20 +139,23 @@ src/
 ├── actions/      # Server actions (database operations)
 ├── app/          # Next.js App Router pages
 │   ├── (auth)/   # Auth pages (login)
-│   └── (dashboard)/ # Protected pages (student/staff)
+│   ├── (dashboard)/ # Protected pages (student/staff)
+│   └── api/      # API routes
 ├── components/   # React components
 │   ├── ui/       # Shadcn UI components
-│   ├── student/  # Student-specific components
-│   └── staff/    # Staff-specific components
-├── lib/          # Core utilities (auth, prisma, websocket)
+│   └── student/  # Student-specific components
+├── hooks/        # Custom React hooks
+├── lib/          # Core utilities (auth, prisma, queue, websocket)
 ├── store/        # Zustand state stores
 └── types/        # TypeScript type definitions
 
-prisma/
-└── schema.prisma # Database schema
+server.ts         # Custom Next.js + Socket.IO server setup
 
 scripts/
-└── docker-entrypoint-prod.sh # Production startup script
+├── backup-db.sh          # Database backup utility
+├── verify-local-db.sh    # Database verification tool
+├── update-staff-roles.ts # Script to manage staff permissions
+└── docker-*.sh           # Docker management scripts
 ```
 
 ## Environment Variables
@@ -164,7 +168,3 @@ See `.env.example` for all available options. Key variables:
 - `DATABASE_URL` - PostgreSQL connection string
 - `REDIS_URL` - Redis connection (optional, for queues)
 - `NEXT_PUBLIC_BETTER_AUTH_URL` - Auth API URL
-
-## License
-
-MIT

@@ -43,7 +43,7 @@ const studentItems = [
 const staffItems = [
   { title: "Inbox", url: "/staff", icon: Inbox },
   { title: "Active Requests", url: "/staff/active", icon: FileText },
-  { title: "Payouts", url: "/staff/payouts", icon: CreditCard },
+  { title: "Completed", url: "/staff/payouts", icon: CreditCard },
   { title: "Manage Users", url: "/staff/users", icon: Users },
   { title: "Analytics", url: "/staff/analytics", icon: BarChart },
 ]
