@@ -1,15 +1,12 @@
-import { PlusCircle } from "lucide-react"
 import { StatsRow } from "@/components/student/stats-cards"
-import Link from "next/link"
 import { getRefunds } from "@/actions/refunds"
 import { ClientStudentDashboard } from "./client-student-dashboard"
 
 export default async function StudentDashboard() {
   // Get a larger page size to show active requests (most users won't have many)
   const result = await getRefunds({ page: 1, pageSize: 50 })
-  
+
   // Filter out completed requests (PAID, DECLINED) - they go to History
-  // We do the same filter on the client to keep stats consistent with the list
   const activeRequests = result.data.filter(r => r.status !== "PAID" && r.status !== "DECLINED")
 
   const totalActive = activeRequests.reduce((sum, req) => sum + req.amountEst, 0)
@@ -27,14 +24,12 @@ export default async function StudentDashboard() {
         </p>
       </div>
 
-      {/* Stats Row */}
-      <StatsRow
-        totalActive={totalActive}
-        pendingAction={pendingAction}
+      {/* Client Component handles stats AND requests list with React Query */}
+      <ClientStudentDashboard
+        initialData={result.data}
+        initialTotalActive={totalActive}
+        initialPendingAction={pendingAction}
       />
-
-      {/* Active Requests Section - Now Client Component */}
-      <ClientStudentDashboard initialData={result.data} />
     </div>
   )
 }

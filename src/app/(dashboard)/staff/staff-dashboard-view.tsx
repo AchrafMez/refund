@@ -8,7 +8,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { PaginatedResult, PaginationMeta } from "@/types/pagination"
 import { useQuery, useQueryClient } from "@tanstack/react-query" // Removed useSocket import
 
-// Types
+// Typesn
 interface RefundRequest {
     id: string
     userId: string
@@ -64,7 +64,7 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
     useEffect(() => {
         if (tabFromUrl && tabFromUrl !== activeTab) {
             setActiveTab(tabFromUrl)
-            setPage(1) 
+            setPage(1)
         }
     }, [tabFromUrl])
 
@@ -147,7 +147,6 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
                     return (
                         <div
                             key={request.id}
-                            onClick={() => router.push(`/staff/${request.id}`)}
                             style={{
                                 display: 'block',
                                 width: '100%',
@@ -155,7 +154,6 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
                                 padding: 0,
                                 border: 'none',
                                 background: 'transparent',
-                                cursor: 'pointer'
                             }}
                         >
                             {activeTab === 'estimates' ? (
@@ -279,14 +277,14 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const [isPending, startTransition] = useTransition()
     const [showPreview, setShowPreview] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
+    const [showApproveDialog, setShowApproveDialog] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
+    const [finalAmount, setFinalAmount] = useState(request.amountEst.toString())
     const [isMobile, setIsMobile] = useState(false)
-    // Simple session-based viewed state - starts false (unviewed), becomes true when clicked
     const [hasViewedReceipt, setHasViewedReceipt] = useState(false)
     const [previewError, setPreviewError] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
 
-    // Detect mobile
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 640)
         checkMobile()
@@ -294,31 +292,27 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
-    // Handle preview toggle and mark as viewed
     const handlePreviewToggle = () => {
         setShowPreview(!showPreview)
-        // Mark as viewed when opening preview
         if (!showPreview) {
             if (!hasViewedReceipt) setHasViewedReceipt(true)
-            setPreviewError(false) // Reset error state on each open
+            setPreviewError(false)
         }
     }
 
-    const handleAction = (newStatus: "PENDING_RECEIPTS" | "VERIFIED_READY" | "PAID" | "DECLINED", reason?: string) => {
+    const handleAction = (newStatus: "PENDING_RECEIPTS" | "VERIFIED_READY" | "PAID" | "DECLINED", reason?: string, amountFinal?: number) => {
         startTransition(async () => {
-            await updateRefundStatus(request.id, newStatus, reason)
+            await updateRefundStatus(request.id, newStatus, reason, amountFinal)
             router.refresh()
         })
     }
 
     const handleReject = () => {
-        // Show dialog for both estimates and receipts to get rejection reason
         setShowRejectDialog(true)
     }
 
     const confirmReject = () => {
         if (type === 'receipt') {
-            // For receipts, use rejectReceipt action (clears receipt URL)
             startTransition(async () => {
                 await rejectReceipt(request.id, rejectReason)
                 router.refresh()
@@ -329,6 +323,20 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
         }
         setShowRejectDialog(false)
         setRejectReason("")
+    }
+
+    const handleApprove = () => {
+        setShowApproveDialog(true)
+    }
+
+    const confirmApprove = () => {
+        if (isEstimate) {
+            handleAction("PENDING_RECEIPTS")
+        } else {
+            const amount = parseFloat(finalAmount)
+            handleAction("PAID", undefined, isNaN(amount) ? undefined : amount)
+        }
+        setShowApproveDialog(false)
     }
 
     const handleDownloadCard = async (e: React.MouseEvent) => {
@@ -993,7 +1001,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
-                            handleAction(isEstimate ? "PENDING_RECEIPTS" : "PAID")
+                            handleApprove()
                         }}
                         disabled={isPending}
                         style={{
@@ -1099,6 +1107,128 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 }}
                             >
                                 Reject Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Approval Confirmation Dialog */}
+            {showApproveDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowApproveDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
+                            {isEstimate ? 'Confirm Approval' : 'Set Final Refund Amount'}
+                        </h3>
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            {isEstimate
+                                ? 'Are you sure you want to approve this estimate? The student will be notified to upload their receipt.'
+                                : 'Enter the final refund amount for this request. The student will be notified that their refund is ready.'}
+                        </p>
+
+                        {/* Request Details */}
+                        <div style={{
+                            backgroundColor: '#f4f4f5',
+                            borderRadius: '0.5rem',
+                            padding: '0.75rem',
+                            marginBottom: '1rem'
+                        }}>
+                            <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem' }}>
+                                {request.title}
+                            </p>
+                            <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
+                                {request.user?.name || request.user?.email} • Estimated: {request.amountEst.toFixed(2)} Dhs
+                            </p>
+                        </div>
+
+                        {/* Final Amount Input for Receipts */}
+                        {!isEstimate && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <label style={{
+                                    display: 'block',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    color: '#18181b',
+                                    marginBottom: '0.375rem'
+                                }}>
+                                    Final Refund Amount (Dhs)
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={finalAmount}
+                                    onChange={(e) => setFinalAmount(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.625rem 0.75rem',
+                                        borderRadius: '0.375rem',
+                                        border: '1px solid #e4e4e7',
+                                        fontSize: '0.875rem',
+                                        outline: 'none'
+                                    }}
+                                    onFocus={(e) => e.currentTarget.style.borderColor = '#18181b'}
+                                    onBlur={(e) => e.currentTarget.style.borderColor = '#e4e4e7'}
+                                />
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowApproveDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmApprove}
+                                disabled={isPending}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: 'none',
+                                    backgroundColor: isPending ? '#52525b' : '#18181b',
+                                    color: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: isPending ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem'
+                                }}
+                            >
+                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                {isEstimate ? 'Approve' : 'Mark as Paid'}
                             </button>
                         </div>
                     </div>

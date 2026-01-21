@@ -109,6 +109,7 @@ model RefundRequest {
   title       String
   description String?
   amountEst   Float        
+  amountFinal Float?       // Actual refunded amount set by staff
   receiptUrl  String?
   
   status      RefundStatus @default(ESTIMATED)

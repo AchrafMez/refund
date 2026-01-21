@@ -4,23 +4,22 @@ import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { createNotification, notifyAllStaff } from "./notifications"
 import { emitRefundNew, emitRefundUpdated, emitReceiptUploaded } from "@/lib/ws-emitter"
-import { 
-    PaginationParams, 
-    PaginatedResult, 
-    DEFAULT_PAGE, 
-    DEFAULT_PAGE_SIZE, 
-    calculatePagination, 
-    getSkip 
+import {
+    PaginationParams,
+    PaginatedResult,
+    DEFAULT_PAGE,
+    DEFAULT_PAGE_SIZE,
+    calculatePagination,
+    getSkip
 } from "@/types/pagination"
 
-// Type for refund request
 type RefundRequest = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>>
 
 export async function getRefunds(params?: PaginationParams): Promise<PaginatedResult<NonNullable<RefundRequest>>> {
     const session = await auth.api.getSession({
         headers: await headers()
     })
-    
+
     if (!session) {
         return {
             data: [],
@@ -93,7 +92,6 @@ export async function createEstimate(data: {
         })
     }
 
-    // Emit WebSocket event for real-time updates
     emitRefundNew({
         id: request.id,
         userId: request.userId,
@@ -134,7 +132,6 @@ export async function getRefundRequestById(id: string) {
     return request
 }
 
-// Type for refund request with user
 type RefundRequestWithUser = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>> & {
     user: { name: string | null; email: string; image: string | null }
 }
@@ -143,7 +140,6 @@ interface StaffRequestsParams extends PaginationParams {
     statusFilter?: "estimates" | "receipts" | "payouts" | "all"
 }
 
-// Helper to get status filter for staff tabs
 function getStatusWhereClause(statusFilter?: string) {
     switch (statusFilter) {
         case "estimates":
@@ -169,7 +165,6 @@ export async function getAllRefundRequests(params?: StaffRequestsParams): Promis
         }
     }
 
-    // Role check: only staff and admin can view all requests
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true }
@@ -243,7 +238,8 @@ export async function getStaffTabCounts(): Promise<{ estimates: number; receipts
 export async function updateRefundStatus(
     id: string,
     newStatus: "PENDING_RECEIPTS" | "VERIFIED_READY" | "PAID" | "DECLINED",
-    reason?: string
+    reason?: string,
+    amountFinal?: number
 ) {
     const session = await auth.api.getSession({
         headers: await headers()
@@ -253,7 +249,6 @@ export async function updateRefundStatus(
         throw new Error("Unauthorized")
     }
 
-    // Role check: only staff and admin can update refund status
     const currentUser = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true }
@@ -276,7 +271,8 @@ export async function updateRefundStatus(
         where: { id },
         data: {
             status: newStatus,
-            ...(newStatus === "DECLINED" && reason ? { staffNote: reason } : {})
+            ...(newStatus === "DECLINED" && reason ? { staffNote: reason } : {}),
+            ...(newStatus === "PAID" && amountFinal !== undefined ? { amountFinal } : {})
         }
     })
 
@@ -295,7 +291,6 @@ export async function updateRefundStatus(
                 refundId: id
             })
 
-            // Emit WebSocket event
             emitRefundUpdated(request.userId, {
                 refundId: id,
                 status: "VERIFIED_READY",
@@ -330,7 +325,6 @@ export async function updateRefundStatus(
         })
     }
 
-    // Emit WebSocket event for status update
     emitRefundUpdated(request.userId, {
         refundId: id,
         status: newStatus,
@@ -356,7 +350,6 @@ export async function submitReceipt(id: string, receiptUrl: string) {
         select: { title: true, userId: true }
     })
 
-    // Verify the user owns this request
     if (!request || request.userId !== session.user.id) {
         throw new Error("Unauthorized: You don't own this request")
     }
@@ -377,7 +370,6 @@ export async function submitReceipt(id: string, receiptUrl: string) {
             refundId: id
         })
 
-        // Emit WebSocket event for receipt upload
         emitReceiptUploaded({
             refundId: id,
             userId: request.userId,
@@ -403,7 +395,6 @@ export async function rejectReceipt(id: string, reason: string) {
         throw new Error("Unauthorized")
     }
 
-    // Role check: only staff and admin can reject receipts
     const currentUser = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true }
