@@ -3,28 +3,39 @@
 import { useRef } from "react"
 import Link from "next/link"
 import { submitReceipt, getRefundRequestById } from "@/actions/refunds"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { StatusBadge, RequestStatus } from "@/components/status-badge"
-import { ReceiptUpload } from "@/components/student/receipt-upload"
+import { MultiReceiptUpload } from "@/components/student/multi-receipt-upload"
+import { ReceiptList } from "@/components/receipt-list"
 import { ChevronLeft, CalendarDays, CheckCircle2, Clock, FileText, CreditCard, CircleDot, Download } from "lucide-react"
+
+interface Receipt {
+    id: string
+    url: string
+    amount: number
+    createdAt: string
+}
 
 interface RequestDetailsViewProps {
     request: {
         id: string
         title: string
         amount: number
+        totalAmount?: number
         date: string
         status: string
         category: string
         description: string | null
         receiptUrl: string | null
+        receipts: Receipt[]
         user: {
             name: string | null
             email: string
             image: string | null
         }
     }
+    isStaff?: boolean
 }
 
 // Timeline step configuration
@@ -80,8 +91,9 @@ const getTimelineSteps = (status: RequestStatus, createdDate: string) => {
     return steps
 }
 
-export function RequestDetailsView({ request: initialRequest }: RequestDetailsViewProps) {
+export function RequestDetailsView({ request: initialRequest, isStaff = false }: RequestDetailsViewProps) {
     const printRef = useRef<HTMLDivElement>(null)
+    const queryClient = useQueryClient()
 
     // Use Query for real-time data
     const { data: request } = useQuery({
@@ -93,11 +105,18 @@ export function RequestDetailsView({ request: initialRequest }: RequestDetailsVi
                 id: updated.id,
                 title: updated.title,
                 amount: updated.amountEst,
+                totalAmount: updated.totalAmount,
                 date: updated.createdAt.toISOString(),
                 status: updated.status,
                 category: updated.type,
                 description: updated.description,
                 receiptUrl: updated.receiptUrl,
+                receipts: (updated.receipts || []).map((r: any) => ({
+                    id: r.id,
+                    url: r.url,
+                    amount: r.amount,
+                    createdAt: typeof r.createdAt === 'string' ? r.createdAt : r.createdAt.toISOString()
+                })),
                 user: updated.user
              }
         },
@@ -105,10 +124,11 @@ export function RequestDetailsView({ request: initialRequest }: RequestDetailsVi
     })
 
     const status = request.status as RequestStatus
+    const receipts = request.receipts || []
+    const totalAmount = request.totalAmount || receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
 
-    const handleUploadSuccess = async (url: string) => {
-        await submitReceipt(request.id, url)
-        // No need to manually set status, WebSocket will trigger invalidation
+    const handleUploadComplete = () => {
+        queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
     }
 
     const timelineSteps = getTimelineSteps(status, request.date)
@@ -464,12 +484,12 @@ export function RequestDetailsView({ request: initialRequest }: RequestDetailsVi
                     {/* Main Content */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
 
-                        {/* Status Action Card */}
-                        {status === "PENDING_RECEIPTS" && (
+                        {/* Status Action Card - Only show upload for request owner (not staff) */}
+                        {status === "PENDING_RECEIPTS" && !isStaff && (
                             <div
                                 style={{
-                                    backgroundColor: '#fffbeb',
-                                    border: '1px solid #fde68a',
+                                    backgroundColor: receipts.length > 0 ? '#fff7ed' : '#fffbeb',
+                                    border: receipts.length > 0 ? '1px solid #fdba74' : '1px solid #fde68a',
                                     borderRadius: '0.75rem',
                                     padding: '1.5rem',
                                     display: 'flex',
@@ -481,7 +501,7 @@ export function RequestDetailsView({ request: initialRequest }: RequestDetailsVi
                                     width: '2.5rem',
                                     height: '2.5rem',
                                     borderRadius: '50%',
-                                    backgroundColor: '#fbbf24',
+                                    backgroundColor: receipts.length > 0 ? '#f97316' : '#fbbf24',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -490,16 +510,62 @@ export function RequestDetailsView({ request: initialRequest }: RequestDetailsVi
                                     <FileText style={{ width: '1.25rem', height: '1.25rem', color: 'white' }} />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#92400e', marginBottom: '0.25rem' }}>
-                                        Action Required
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, color: receipts.length > 0 ? '#c2410c' : '#92400e', marginBottom: '0.25rem' }}>
+                                        {receipts.length > 0 ? 'Additional Receipt Requested' : 'Action Required'}
                                     </h3>
-                                    <p style={{ fontSize: '0.875rem', color: '#a16207', marginBottom: '1rem' }}>
-                                        Please upload the receipt for this expense to proceed with verification.
+                                    <p style={{ fontSize: '0.875rem', color: receipts.length > 0 ? '#ea580c' : '#a16207', marginBottom: '1rem' }}>
+                                        {receipts.length > 0 
+                                            ? 'Staff has requested additional receipt(s). Please upload more documentation to proceed.'
+                                            : 'Please upload your receipt(s) for this expense to proceed with verification.'
+                                        }
                                     </p>
-                                    <ReceiptUpload onUploadComplete={handleUploadSuccess} />
+                                    <MultiReceiptUpload 
+                                        requestId={request.id} 
+                                        onUploadComplete={handleUploadComplete} 
+                                    />
                                 </div>
                             </div>
                         )}
+
+                        {/* Receipt List - Show for all statuses after receipts are uploaded */}
+                        {receipts.length > 0 && (
+                            <div
+                                style={{
+                                    backgroundColor: 'white',
+                                    border: '1px solid #e4e4e7',
+                                    borderRadius: '0.75rem',
+                                    boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                                    overflow: 'hidden',
+                                    marginBottom: '1rem'
+                                }}
+                            >
+                                <div style={{
+                                    padding: '1rem 1.5rem',
+                                    borderBottom: '1px solid #f4f4f5',
+                                    backgroundColor: '#fafafa',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}>
+                                    <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Receipts
+                                    </h3>
+                                    {totalAmount > 0 && (
+                                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b' }}>
+                                            Total: ${totalAmount.toFixed(2)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ padding: '1rem 1.5rem' }}>
+                                    <ReceiptList 
+                                        receipts={receipts.map((r: Receipt) => ({ ...r, createdAt: new Date(r.createdAt) }))}
+                                        isStaff={isStaff}
+                                        requestId={request.id}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
 
                         {/* Details Card */}
                         <div
@@ -544,13 +610,18 @@ export function RequestDetailsView({ request: initialRequest }: RequestDetailsVi
                                         {request.category}
                                     </div>
 
-                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Amount</div>
-                                    <div style={{ fontWeight: 600, color: '#18181b', fontSize: '1.125rem' }}>
+                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Estimate</div>
+                                    <div style={{ fontWeight: 500, color: '#71717a', fontSize: '0.875rem' }}>
                                         {request.amount.toFixed(2)} DH
                                     </div>
 
+                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Total Amount</div>
+                                    <div style={{ fontWeight: 600, color: '#18181b', fontSize: '1.125rem' }}>
+                                        {totalAmount.toFixed(2)} DH
+                                    </div>
+
                                     <div style={{ color: '#71717a', fontWeight: 500 }}>Submitted</div>
-                                    <div style={{ fontWeight: 500, color: '#18181b' }}>
+                                    <div style={{ fontWeight: 500, color: '#18181b' }} suppressHydrationWarning>
                                         {new Date(request.date).toLocaleDateString('en-US', {
                                             month: 'long',
                                             day: 'numeric',
@@ -673,7 +744,7 @@ export function RequestDetailsView({ request: initialRequest }: RequestDetailsVi
                                                             fontSize: '0.6875rem',
                                                             color: '#a1a1aa',
                                                             marginTop: '0.375rem'
-                                                        }}>
+                                                        }} suppressHydrationWarning>
                                                             {new Date(step.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                         </div>
                                                     )}

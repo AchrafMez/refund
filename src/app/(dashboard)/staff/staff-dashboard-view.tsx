@@ -1,14 +1,20 @@
 "use client"
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
-import { CheckCircle2, XCircle, FileText, Calendar, User2, Loader2, Download, Eye, EyeOff } from "lucide-react"
+import { CheckCircle2, XCircle, FileText, Calendar, User2, Loader2, Download, Eye, EyeOff, Plus } from "lucide-react"
 import { updateRefundStatus, rejectReceipt, getAllRefundRequests, getStaffTabCounts } from "@/actions/refunds"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Pagination } from "@/components/ui/pagination"
 import { PaginatedResult, PaginationMeta } from "@/types/pagination"
 import { useQuery, useQueryClient } from "@tanstack/react-query" // Removed useSocket import
 
-// Typesn
+// Types
+interface Receipt {
+    id: string
+    url: string
+    amount: number
+}
+
 interface RefundRequest {
     id: string
     userId: string
@@ -20,6 +26,8 @@ interface RefundRequest {
     title: string
     description: string | null
     amountEst: number
+    totalAmount?: number
+    receipts?: Receipt[]
     createdAt: Date
     updatedAt: Date
     status: string
@@ -29,15 +37,17 @@ interface RefundRequest {
 }
 
 interface TabCounts {
-    estimates: number
+    Validation: number
     receipts: number
     payouts: number
+    fails: number
 }
 
 const tabs = [
-    { id: "estimates", label: "Estimates" },
-    { id: "receipts", label: "Receipts" },
-    { id: "payouts", label: "Payouts" },
+    { id: "Validation", label: "Validation" },
+    { id: "Processing", label: "Processing" },
+    { id: "Completed", label: "Completed" },
+    { id: "Fails", label: "Fails" },
 ] as const
 
 type TabId = typeof tabs[number]["id"]
@@ -56,9 +66,10 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
     const [pageSize, setPageSize] = useState(10)
 
     const [activeTab, setActiveTab] = useState<TabId>(
-        tabFromUrl === 'receipts' ? 'receipts' :
-            tabFromUrl === 'payouts' ? 'payouts' :
-                'estimates'
+        tabFromUrl === 'Processing' ? 'Processing' :
+            tabFromUrl === 'Completed' ? 'Completed' :
+                tabFromUrl === 'Fails' ? 'Fails' :
+                    'Validation'
     )
 
     useEffect(() => {
@@ -77,7 +88,7 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
     const { data: currentTabData, isLoading } = useQuery({
         queryKey: ["refunds", { status: activeTab, page, pageSize }],
         queryFn: () => getAllRefundRequests({ page, pageSize, statusFilter: activeTab }),
-        initialData: (activeTab === 'estimates' && page === 1) ? initialData : undefined,
+        initialData: (activeTab === 'Validation' && page === 1) ? initialData : undefined,
     })
 
     const handleTabChange = (tab: TabId) => {
@@ -156,14 +167,12 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
                                 background: 'transparent',
                             }}
                         >
-                            {activeTab === 'estimates' ? (
+                            {activeTab === 'Validation' ? (
                                 <InboxCard request={request} type="estimate" />
-                            ) : activeTab === 'receipts' ? (
+                            ) : activeTab === 'Processing' ? (
                                 <InboxCard request={request} type="receipt" />
                             ) : (
-                                <span style={{ opacity: 0.5 }}>
-                                    <InboxCard request={request} type="payout" />
-                                </span>
+                                <InboxCard request={request} type="payout" />
                             )}
                         </div>
                     )
@@ -224,12 +233,19 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
             <div className="staff-tabs">
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.id
-                    const count = counts[tab.id as keyof typeof counts]
+                    // Map tab IDs to counts - tab names don't match count field names exactly
+                    const countMap: Record<string, keyof typeof counts> = {
+                        Validation: 'Validation',
+                        Processing: 'receipts',
+                        Completed: 'payouts',
+                        Fails: 'fails'
+                    }
+                    const count = counts[countMap[tab.id]] || 0
                     return (
                         <button
                             key={tab.id}
                             className="staff-tab"
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => handleTabChange(tab.id)}
                             style={{
                                 backgroundColor: isActive ? 'white' : 'transparent',
                                 color: isActive ? '#18181b' : '#71717a',
@@ -281,11 +297,14 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const [rejectReason, setRejectReason] = useState("")
     const [finalAmount, setFinalAmount] = useState(request.amountEst.toString())
     const [isMobile, setIsMobile] = useState(false)
+    const [mounted, setMounted] = useState(false)
+    // Simple session-based viewed state - starts false (unviewed), becomes true when clicked
     const [hasViewedReceipt, setHasViewedReceipt] = useState(false)
     const [previewError, setPreviewError] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
+        setMounted(true)
         const checkMobile = () => setIsMobile(window.innerWidth < 640)
         checkMobile()
         window.addEventListener('resize', checkMobile)
@@ -308,6 +327,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     }
 
     const handleReject = () => {
+        // Show dialog for both Validation and receipts to get rejection reason
         setShowRejectDialog(true)
     }
 
@@ -318,7 +338,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                 router.refresh()
             })
         } else {
-            // For estimates, use updateRefundStatus with DECLINED
+            // For Validation, use updateRefundStatus with DECLINED
             handleAction("DECLINED", rejectReason || undefined)
         }
         setShowRejectDialog(false)
@@ -337,6 +357,13 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
             handleAction("PAID", undefined, isNaN(amount) ? undefined : amount)
         }
         setShowApproveDialog(false)
+    }
+
+    const handleRequestAdditionalReceipt = () => {
+        startTransition(async () => {
+            await updateRefundStatus(request.id, "PENDING_RECEIPTS", "Staff requested additional receipt(s)")
+            router.refresh()
+        })
     }
 
     const handleDownloadCard = async (e: React.MouseEvent) => {
@@ -636,12 +663,12 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
         >
             {/* Header */}
             <div style={{
-                padding: isMobile ? '1rem' : '1.25rem',
+                padding: (mounted && isMobile) ? '1rem' : '1.25rem',
                 display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
+                flexDirection: (mounted && isMobile) ? 'column' : 'row',
                 justifyContent: 'space-between',
-                alignItems: isMobile ? 'stretch' : 'flex-start',
-                gap: isMobile ? '0.75rem' : '0'
+                alignItems: (mounted && isMobile) ? 'stretch' : 'flex-start',
+                gap: (mounted && isMobile) ? '0.75rem' : '0'
             }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     {/* User row */}
@@ -656,8 +683,8 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 src={request.user.image}
                                 alt={request.user.name || 'User'}
                                 style={{
-                                    width: isMobile ? '1.75rem' : '2rem',
-                                    height: isMobile ? '1.75rem' : '2rem',
+                                    width: (mounted && isMobile) ? '1.75rem' : '2rem',
+                                    height: (mounted && isMobile) ? '1.75rem' : '2rem',
                                     borderRadius: '50%',
                                     objectFit: 'cover',
                                     flexShrink: 0
@@ -666,15 +693,15 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         ) : (
                             <div
                                 style={{
-                                    width: isMobile ? '1.75rem' : '2rem',
-                                    height: isMobile ? '1.75rem' : '2rem',
+                                    width: (mounted && isMobile) ? '1.75rem' : '2rem',
+                                    height: (mounted && isMobile) ? '1.75rem' : '2rem',
                                     borderRadius: '50%',
                                     backgroundColor: '#18181b',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     color: 'white',
-                                    fontSize: isMobile ? '0.625rem' : '0.75rem',
+                                    fontSize: (mounted && isMobile) ? '0.625rem' : '0.75rem',
                                     fontWeight: 600,
                                     flexShrink: 0
                                 }}
@@ -683,7 +710,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                             </div>
                         )}
                         <span style={{
-                            fontSize: isMobile ? '0.875rem' : '0.9375rem',
+                            fontSize: (mounted && isMobile) ? '0.875rem' : '0.9375rem',
                             fontWeight: 500,
                             color: '#18181b',
                             overflow: 'hidden',
@@ -705,7 +732,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 padding: '0.1875rem 0.5rem',
                                 borderRadius: '0.25rem',
                                 backgroundColor: '#f4f4f5',
-                                fontSize: isMobile ? '0.6875rem' : '0.75rem',
+                                fontSize: (mounted && isMobile) ? '0.6875rem' : '0.75rem',
                                 fontWeight: 500,
                                 color: '#52525b'
                             }}
@@ -718,12 +745,30 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 borderRadius: '0.25rem',
                                 backgroundColor: request.status === 'PAID' ? '#dcfce7' : request.status === 'DECLINED' ? '#fee2e2' : '#f4f4f5',
                                 color: request.status === 'PAID' ? '#166534' : request.status === 'DECLINED' ? '#991b1b' : '#52525b',
-                                fontSize: isMobile ? '0.6875rem' : '0.75rem',
+                                fontSize: (mounted && isMobile) ? '0.6875rem' : '0.75rem',
                                 fontWeight: 500
                             }}
                         >
                             {request.status}
                         </span>
+                        {/* Receipt count badge */}
+                        {request.receipts && request.receipts.length > 0 && (
+                            <span
+                                style={{
+                                    padding: '0.1875rem 0.5rem',
+                                    borderRadius: '0.25rem',
+                                    backgroundColor: '#dbeafe',
+                                    color: '#1e40af',
+                                    fontSize: (mounted && isMobile) ? '0.6875rem' : '0.75rem',
+                                    fontWeight: 500,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                }}
+                            >
+                                📎 {request.receipts.length} receipt{request.receipts.length > 1 ? 's' : ''}
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -731,14 +776,14 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: isMobile ? 'space-between' : 'flex-end',
+                    justifyContent: (mounted && isMobile) ? 'space-between' : 'flex-end',
                     gap: '1rem'
                 }}>
-                    <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
-                        <div style={{ fontWeight: 600, color: '#18181b', fontSize: isMobile ? '1rem' : '1.125rem' }}>
-                            {request.amountEst.toFixed(2)} <span style={{ color: '#71717a', fontSize: isMobile ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>Dhs</span>
+                    <div style={{ textAlign: (mounted && isMobile) ? 'left' : 'right' }}>
+                        <div style={{ fontWeight: 600, color: '#18181b', fontSize: (mounted && isMobile) ? '1rem' : '1.125rem' }}>
+                            {request.amountEst.toFixed(2)} <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>Dhs</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end', gap: '0.375rem', fontSize: '0.75rem', color: '#71717a', marginTop: '0.125rem' }} suppressHydrationWarning>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: (mounted && isMobile) ? 'flex-start' : 'flex-end', gap: '0.375rem', fontSize: '0.75rem', color: '#71717a', marginTop: '0.125rem' }} suppressHydrationWarning>
                             <Calendar style={{ width: '0.75rem', height: '0.75rem' }} />
                             {new Date(request.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </div>
@@ -998,6 +1043,36 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />}
                         {type === 'receipt' ? 'Reject Receipt' : 'Reject'}
                     </button>
+                    {/* Request Additional Receipt - only for receipt type */}
+                    {type === 'receipt' && request.status !== 'PENDING_RECEIPTS' && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                handleRequestAdditionalReceipt()
+                            }}
+                            disabled={isPending}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.375rem',
+                                padding: '0.5rem 0.875rem',
+                                borderRadius: '0.375rem',
+                                fontSize: '0.8125rem',
+                                fontWeight: 500,
+                                backgroundColor: 'white',
+                                border: '1px solid #fbbf24',
+                                color: '#b45309',
+                                cursor: isPending ? 'not-allowed' : 'pointer',
+                                transition: 'all 150ms'
+                            }}
+                            onMouseEnter={(e) => !isPending && (e.currentTarget.style.backgroundColor = '#fffbeb')}
+                            onMouseLeave={(e) => !isPending && (e.currentTarget.style.backgroundColor = 'white')}
+                            title="Request additional receipt from student"
+                        >
+                            {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <Plus style={{ width: '0.875rem', height: '0.875rem' }} />}
+                            Request More
+                        </button>
+                    )}
                     <button
                         onClick={(e) => {
                             e.stopPropagation()

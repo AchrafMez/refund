@@ -87,7 +87,7 @@ export async function createNotification(data: {
     userId: string
     title: string
     message: string
-    type: "NEW_REQUEST" | "APPROVED" | "REJECTED" | "PAID"
+    type: "NEW_REQUEST" | "APPROVED" | "REJECTED" | "PAID" | "INFO"
     refundId?: string
 }) {
     const notification = await prisma.notification.create({

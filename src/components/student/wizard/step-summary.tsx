@@ -85,9 +85,15 @@ export function StepSummary() {
       await createEstimate({
         title: `${data.category?.charAt(0).toUpperCase()}${data.category?.slice(1)} Refund`,
         description: data.description,
-        amount: parseFloat(data.amount),
+        amount: parseFloat(data.amount) || 0,
         type: categoryMap[data.category!] || 'OTHER',
-        receiptUrl
+        receiptUrl,
+        // New fields from Step 3
+        certificateId: data.certificateId || undefined,
+        targetDate: data.targetDate,
+        departure: data.departure || undefined,
+        destination: data.destination || undefined,
+        invoiceAddressedTo: data.invoiceAddressedTo ? 'LEET INITIATIVE' : undefined
       })
 
       setIsSubmitting(false)
@@ -126,7 +132,7 @@ export function StepSummary() {
           <div style={{ color: '#71717a' }}>Category</div>
           <div style={{ fontWeight: 500, color: '#18181b', textTransform: 'capitalize' }}>{data.category}</div>
 
-          <div style={{ color: '#71717a' }}>Amount</div>
+          <div style={{ color: '#71717a' }}>Estimate</div>
           <div style={{ fontWeight: 500, color: '#18181b' }}>DH {Number(data.amount).toFixed(2)}</div>
         </div>
 

@@ -93,8 +93,10 @@ interface StatsRowProps {
 
 export function StatsRow({ totalActive, pendingAction }: StatsRowProps) {
   const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 480)
     }
@@ -103,25 +105,28 @@ export function StatsRow({ totalActive, pendingAction }: StatsRowProps) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Use mounted to guard isMobile for hydration safety
+  const isCompact = mounted && isMobile
+
   return (
     <div 
       style={{ 
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-        gap: isMobile ? '0.625rem' : '1rem'
+        gridTemplateColumns: isCompact ? '1fr' : 'repeat(2, 1fr)',
+        gap: isCompact ? '0.625rem' : '1rem'
       }}
     >
       <StatCard 
         label="Total Active"
         value={`${totalActive.toFixed(2)} Dhs`}
         icon={Wallet}
-        compact={isMobile}
+        compact={isCompact}
       />
       <StatCard 
         label="Pending Action"
         value={`${pendingAction} Request${pendingAction !== 1 ? 's' : ''}`}
         icon={Clock}
-        compact={isMobile}
+        compact={isCompact}
       />
     </div>
   )

@@ -11,27 +11,40 @@ interface WizardState {
     amount: string
     description: string
     date: Date | undefined
+    // New fields for Step 3
+    certificateId: string | null
+    targetDate: Date | undefined
+    departure: string
+    destination: string
+    invoiceAddressedTo: boolean // Checkbox: Invoice addressed to LEET INITIATIVE
   }
   setStep: (step: number) => void
   setData: (data: Partial<WizardState['data']>) => void
   reset: () => void
 }
 
+const initialData = {
+  category: null,
+  amount: '',
+  description: '',
+  date: undefined,
+  certificateId: null,
+  targetDate: undefined,
+  departure: '',
+  destination: '',
+  invoiceAddressedTo: false,
+}
+
 export const useWizardStore = create<WizardState>()(
   persist(
     (set) => ({
       step: 1,
-      data: {
-        category: null,
-        amount: '',
-        description: '',
-        date: undefined,
-      },
+      data: initialData,
       setStep: (step) => set({ step }),
       setData: (newData) => set((state) => ({ data: { ...state.data, ...newData } })),
       reset: () => set({ 
         step: 1, 
-        data: { category: null, amount: '', description: '', date: undefined } 
+        data: initialData
       }),
     }),
     {

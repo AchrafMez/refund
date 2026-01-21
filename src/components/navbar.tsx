@@ -127,7 +127,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
               position: 'absolute',
               top: 0,
               left: '-100vw', // Extend infinitely to the left (clipped by header overflow)
-              right: isMobile ? 'calc(100% - 220px)' : 'calc(100% - 200px)', // Pinned relative to logo
+              right: (mounted && isMobile) ? 'calc(100% - 220px)' : 'calc(100% - 200px)', // Pinned relative to logo
               bottom: 0,
               backgroundColor: '#f4f4f5',
               clipPath: 'polygon(0 0, 100% 0, calc(100% - 20px) 100%, 0 100%)',

@@ -20,6 +20,7 @@ interface Notification {
 export function NotificationBell() {
     const [isOpen, setIsOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
+    const [mounted, setMounted] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
     const queryClient = useQueryClient()
@@ -39,6 +40,7 @@ export function NotificationBell() {
     })
 
     useEffect(() => {
+        setMounted(true)
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768)
         }
@@ -83,7 +85,7 @@ export function NotificationBell() {
         setIsOpen(false)
 
         if (notification.type === "NEW_REQUEST") {
-            window.location.href = "/staff?tab=estimates"
+            window.location.href = "/staff?tab=Validation"
         } else if (notification.type === "RECEIPT_UPLOADED") {
             window.location.href = "/staff?tab=receipts"
         } else if (notification.refundId) {
@@ -215,12 +217,12 @@ export function NotificationBell() {
             {isOpen && (
                 <div
                     style={{
-                        position: isMobile ? 'fixed' : 'absolute',
-                        top: isMobile ? '4rem' : 'calc(100% + 1rem)',
-                        right: isMobile ? '0.75rem' : 0,
-                        left: isMobile ? '0.75rem' : 'auto',
-                        width: isMobile ? 'auto' : '22rem',
-                        maxHeight: isMobile ? 'calc(100vh - 5rem)' : '28rem',
+                        position: (mounted && isMobile) ? 'fixed' : 'absolute',
+                        top: (mounted && isMobile) ? '4rem' : 'calc(100% + 1rem)',
+                        right: (mounted && isMobile) ? '0.75rem' : 0,
+                        left: (mounted && isMobile) ? '0.75rem' : 'auto',
+                        width: (mounted && isMobile) ? 'auto' : '22rem',
+                        maxHeight: (mounted && isMobile) ? 'calc(100vh - 5rem)' : '28rem',
                         backgroundColor: 'white',
                         borderRadius: '0.75rem',
                         border: '1px solid #e4e4e7',
@@ -410,7 +412,7 @@ export function NotificationBell() {
                                                 color: '#a1a1aa',
                                                 fontSize: '0.6875rem',
                                                 marginTop: '0.375rem'
-                                            }}>
+                                            }} suppressHydrationWarning>
                                                 {formatTime(notification.createdAt)}
                                             </p>
                                         </div>
