@@ -4,8 +4,18 @@ import { useWizardStore } from "@/store/wizard-store"
 import { StepCategory } from "@/components/student/wizard/step-category"
 import { StepDetails } from "@/components/student/wizard/step-details"
 import { StepSummary } from "@/components/student/wizard/step-summary"
-import { ChevronLeft, FolderOpen, FileText, CheckCircle, AlertCircle } from "lucide-react"
+import { ChevronLeft, FolderOpen, FileText, CheckCircle, AlertCircle, Info, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { authClient } from "@/lib/auth-client"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 const steps = [
   { id: 1, label: "Category", icon: FolderOpen },
@@ -16,6 +26,19 @@ const steps = [
 export default function CreateRequestPage() {
   const { step, setStep, reset } = useWizardStore()
   const router = useRouter()
+  const [showDisclaimer, setShowDisclaimer] = useState(true)
+  const [isStaff, setIsStaff] = useState(false)
+
+  // Check if current user is staff
+  useEffect(() => {
+    const checkStaffRole = async () => {
+      const session = await authClient.getSession()
+      if (session?.data?.user?.role === 'STAFF' || session?.data?.user?.role === 'ADMIN') {
+        setIsStaff(true)
+      }
+    }
+    checkStaffRole()
+  }, [])
 
   const handleBack = () => {
     if (step === 1) {
@@ -25,6 +48,219 @@ export default function CreateRequestPage() {
         setStep(step - 1)
     }
   }
+
+  // Disclaimer Modal
+  if (showDisclaimer) {
+    return (
+      <>
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          }
+          .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 50;
+            animation: fadeIn 0.2s ease-out;
+          }
+          .modal-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 51;
+            width: 100%;
+            max-width: 28rem;
+            padding: 0 1rem;
+            animation: slideUp 0.3s ease-out;
+          }
+          .modal-content {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+          }
+          .modal-header {
+            padding: 1.5rem 1.5rem 1rem;
+            border-bottom: 1px solid #f4f4f5;
+          }
+          .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #18181b;
+            margin: 0;
+          }
+          .modal-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.75rem;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          }
+          .modal-icon svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: #d97706;
+          }
+          .modal-body {
+            padding: 1.25rem 1.5rem;
+          }
+          .modal-intro {
+            font-size: 0.875rem;
+            color: #71717a;
+            margin-bottom: 1rem;
+          }
+          .modal-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+          .modal-list-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+            color: #3f3f46;
+            line-height: 1.5;
+          }
+          .modal-list-bullet {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            background: #f4f4f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 0.125rem;
+          }
+          .modal-list-bullet svg {
+            width: 0.75rem;
+            height: 0.75rem;
+            color: #71717a;
+          }
+          .modal-highlight {
+            font-weight: 600;
+            color: #18181b;
+          }
+          .modal-cap {
+            display: inline-flex;
+            padding: 0.125rem 0.5rem;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.25rem;
+          }
+          .modal-footer {
+            padding: 1rem 1.5rem 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+          }
+          .modal-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: #18181b;
+            color: white;
+            border: none;
+            border-radius: 0.625rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 150ms ease;
+          }
+          .modal-button:hover {
+            background: #27272a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          }
+          .modal-button:active {
+            transform: translateY(0);
+          }
+          .modal-button svg {
+            width: 1rem;
+            height: 1rem;
+          }
+        `}</style>
+        
+        <div className="modal-overlay" />
+        <div className="modal-container">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 className="modal-title">
+                <div className="modal-icon">
+                  <Info />
+                </div>
+                Important Information
+              </h2>
+            </div>
+            
+            <div className="modal-body">
+              <p className="modal-intro">Before you proceed, please note:</p>
+              <ul className="modal-list">
+                <li className="modal-list-item">
+                  <span className="modal-list-bullet">
+                    <CheckCircle />
+                  </span>
+                  <span>
+                    <span className="modal-highlight">The refund amount will match your receipt</span>, 
+                    up to a maximum of <span className="modal-cap">$300 CAP</span>
+                  </span>
+                </li>
+                <li className="modal-list-item">
+                  <span className="modal-list-bullet">
+                    <CheckCircle />
+                  </span>
+                  <span>
+                    Refunds are based on <span className="modal-highlight">actual payment</span>, not estimates.
+                  </span>
+                </li>
+                <li className="modal-list-item">
+                  <span className="modal-list-bullet">
+                    <CheckCircle />
+                  </span>
+                  <span>
+                    Ensure all receipts are addressed to <span className="modal-highlight">LEET INITIATIVE</span>.
+                  </span>
+                </li>
+              </ul>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="modal-button"
+                onClick={() => setShowDisclaimer(false)}
+              >
+                I Understand, Proceed
+                <ChevronLeft style={{ transform: 'rotate(180deg)' }} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
 
   return (
     <div className="wizard-container">

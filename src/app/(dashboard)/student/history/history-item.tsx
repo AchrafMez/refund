@@ -67,6 +67,7 @@ export function HistoryItem({ request }: HistoryItemProps) {
                             color: '#71717a',
                             marginTop: '0.25rem'
                         }}
+                        suppressHydrationWarning
                     >
                         <CalendarDays style={{ width: '0.75rem', height: '0.75rem' }} />
                         {new Date(request.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

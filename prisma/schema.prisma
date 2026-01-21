@@ -114,6 +114,7 @@ model CertificateCatalog {
   provider  String
   fixedCost Float
   currency  String   @default("USD")
+  active    Boolean  @default(true)
   
   requests  RefundRequest[] // Relation for analytics
   

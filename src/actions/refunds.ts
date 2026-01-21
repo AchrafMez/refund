@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
+import { revalidatePath } from "next/cache"
 import { createNotification, notifyAllStaff } from "./notifications"
 import { emitRefundNew, emitRefundUpdated, emitReceiptUploaded } from "@/lib/ws-emitter"
 import { logActivity } from "@/lib/audit"
@@ -49,6 +50,94 @@ export async function getRefunds(params?: PaginationParams): Promise<PaginatedRe
     return {
         data,
         pagination: calculatePagination(page, pageSize, totalItems)
+    }
+}
+
+// Fetch Certificate Catalog for dropdown - Returns ALL for management, frontend filters for dropdown
+export async function getCertificates() {
+    const certificates = await prisma.certificateCatalog.findMany({
+        select: {
+            id: true,
+            name: true,
+            provider: true,
+            fixedCost: true,
+            currency: true,
+            active: true
+        },
+        orderBy: { name: 'asc' }
+    })
+    return certificates
+}
+
+export async function createCertificate(data: {
+    name: string;
+    provider: string;
+    fixedCost: number;
+    currency?: string;
+}) {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session || (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN')) {
+         throw new Error("Unauthorized");
+    }
+
+    const certificate = await prisma.certificateCatalog.create({
+        data: {
+            name: data.name,
+            provider: data.provider,
+            fixedCost: data.fixedCost,
+            currency: data.currency || "USD",
+            active: true
+        }
+    })
+
+    revalidatePath('/', 'layout')
+    return certificate
+}
+
+export async function deleteCertificate(id: string) {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session || (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN')) {
+         throw new Error("Unauthorized");
+    }
+
+    try {
+        await prisma.certificateCatalog.update({
+            where: { id },
+            data: { active: false }
+        });
+        revalidatePath('/', 'layout')
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete certificate:", error);
+        throw new Error("Failed to delete certificate.");
+    }
+}
+
+export async function restoreCertificate(id: string) {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session || (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN')) {
+         throw new Error("Unauthorized");
+    }
+
+    try {
+        await prisma.certificateCatalog.update({
+            where: { id },
+            data: { active: true }
+        });
+        revalidatePath('/', 'layout')
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to restore certificate:", error);
+        throw new Error("Failed to restore certificate.");
     }
 }
 
@@ -168,17 +257,31 @@ export async function getRefundRequestById(id: string) {
                     image: true
                 }
             },
-            receipts: true,
+            receipts: {
+                orderBy: { createdAt: 'asc' }
+            },
             certificate: true
         }
     })
 
-    if (!request || request.userId !== session.user.id) {
+    if (!request) return null
+
+    // Check if user is owner or staff
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    const isStaff = currentUser?.role === 'STAFF' || currentUser?.role === 'ADMIN'
+    const isOwner = request.userId === session.user.id
+
+    if (!isStaff && !isOwner) {
         return null
     }
 
     return request
 }
+
 
 // Type for refund request with user
 type RefundRequestWithUser = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>> & {
@@ -186,7 +289,7 @@ type RefundRequestWithUser = Awaited<ReturnType<typeof prisma.refundRequest.find
 }
 
 interface StaffRequestsParams extends PaginationParams {
-    statusFilter?: "Validation" | "Processing" | "Completed" | "all"
+    statusFilter?: "Validation" | "Processing" | "Completed" | "Fails" | "all"
 }
 
 function getStatusWhereClause(statusFilter?: string) {
@@ -196,7 +299,9 @@ function getStatusWhereClause(statusFilter?: string) {
         case "Processing":
             return { status: { in: ["PENDING_RECEIPTS", "VERIFIED_READY"] as ("PENDING_RECEIPTS" | "VERIFIED_READY")[] } }
         case "Completed":
-            return { status: { in: ["PAID", "DECLINED"] as ("PAID" | "DECLINED")[] } }
+            return { status: "PAID" as const }
+        case "Fails":
+            return { status: "DECLINED" as const }
         default:
             return {}
     }
@@ -257,13 +362,13 @@ export async function getAllRefundRequests(params?: StaffRequestsParams): Promis
     }
 }
 
-export async function getStaffTabCounts(): Promise<{ Validation: number; receipts: number; payouts: number }> {
+export async function getStaffTabCounts(): Promise<{ Validation: number; receipts: number; payouts: number; fails: number }> {
     const session = await auth.api.getSession({
         headers: await headers()
     })
 
     if (!session) {
-        return { Validation: 0, receipts: 0, payouts: 0 }
+        return { Validation: 0, receipts: 0, payouts: 0, fails: 0 }
     }
 
     const user = await prisma.user.findUnique({
@@ -272,16 +377,17 @@ export async function getStaffTabCounts(): Promise<{ Validation: number; receipt
     })
 
     if (!user || (user.role !== "STAFF" && user.role !== "ADMIN")) {
-        return { Validation: 0, receipts: 0, payouts: 0 }
+        return { Validation: 0, receipts: 0, payouts: 0, fails: 0 }
     }
 
-    const [Validation, receipts, payouts] = await Promise.all([
+    const [Validation, receipts, payouts, fails] = await Promise.all([
         prisma.refundRequest.count({ where: { status: "ESTIMATED" } }),
         prisma.refundRequest.count({ where: { status: { in: ["PENDING_RECEIPTS", "VERIFIED_READY"] } } }),
-        prisma.refundRequest.count({ where: { status: { in: ["PAID", "DECLINED"] } } })
+        prisma.refundRequest.count({ where: { status: "PAID" } }),
+        prisma.refundRequest.count({ where: { status: "DECLINED" } })
     ])
 
-    return { Validation, receipts, payouts }
+    return { Validation, receipts, payouts, fails }
 }
 
 
@@ -337,25 +443,30 @@ export async function updateRefundStatus(
 
     // Notification and WebSocket logic remains...
     if (newStatus === "PENDING_RECEIPTS") {
-        // Logic check: if receipts exist, maybe skip to verified?
+        // Check if this is a "request more receipts" scenario (coming from VERIFIED_READY)
+        const wasVerified = request.status === "VERIFIED_READY"
         const receiptCount = await prisma.receipt.count({ where: { refundRequestId: id } });
         
-        if (receiptCount > 0) {
-             await prisma.refundRequest.update({
-                where: { id },
-                data: { status: "VERIFIED_READY" }
+        if (wasVerified || receiptCount > 0) {
+            // Staff is requesting additional receipts
+            const reasonText = reason ? ` Note: ${reason}` : ""
+            await createNotification({
+                userId: request.userId,
+                title: "Additional Receipt Requested",
+                message: `Staff has requested additional receipt(s) for "${request.title}". Please upload more documentation.${reasonText}`,
+                type: "INFO",
+                refundId: id
             })
-            // ... emit verified ...
-            // Simplify for now: Just notify generic approved
+        } else {
+            // Initial approval
+            await createNotification({
+                userId: request.userId,
+                title: "Request Approved!",
+                message: `Your request "${request.title}" was approved. Please upload your receipt.`,
+                type: "APPROVED",
+                refundId: id
+            })
         }
-        
-        await createNotification({
-            userId: request.userId,
-            title: "Request Approved!",
-            message: `Your request "${request.title}" was approved. Please upload your receipt.`,
-            type: "APPROVED",
-            refundId: id
-        })
     } else if (newStatus === "DECLINED") {
         const reasonText = reason ? ` Reason: ${reason}` : ""
         await createNotification({
@@ -521,4 +632,84 @@ export async function rejectReceipt(id: string, reason: string) {
         type: "REJECTED",
         refundId: id
     })
+}
+
+// Staff can edit individual receipt amounts
+export async function updateReceiptAmount(receiptId: string, newAmount: number) {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session) {
+        throw new Error("Unauthorized")
+    }
+
+    // Check staff role
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    if (!currentUser || (currentUser.role !== "STAFF" && currentUser.role !== "ADMIN")) {
+        throw new Error("Unauthorized: Staff access required")
+    }
+
+    // Get the receipt and its parent request
+    const receipt = await prisma.receipt.findUnique({
+        where: { id: receiptId },
+        include: {
+            refundRequest: {
+                select: { id: true, userId: true, title: true }
+            }
+        }
+    })
+
+    if (!receipt) {
+        throw new Error("Receipt not found")
+    }
+
+    const oldAmount = receipt.amount
+
+    // Update the receipt amount
+    await prisma.receipt.update({
+        where: { id: receiptId },
+        data: { amount: newAmount }
+    })
+
+    // Recalculate parent request total
+    const aggregate = await prisma.receipt.aggregate({
+        where: { refundRequestId: receipt.refundRequestId },
+        _sum: { amount: true }
+    })
+    const newTotal = aggregate._sum.amount || 0
+
+    await prisma.refundRequest.update({
+        where: { id: receipt.refundRequestId },
+        data: { totalAmount: newTotal }
+    })
+
+    // Log the activity
+    await logActivity(session.user.id, AuditAction.UPDATE, receipt.refundRequestId, {
+        receiptId,
+        oldAmount,
+        newAmount,
+        newTotal
+    })
+
+    // Emit update for real-time refresh
+    emitRefundUpdated(receipt.refundRequest.userId, {
+        refundId: receipt.refundRequestId,
+        totalAmount: newTotal
+    })
+
+    return { success: true, newTotal }
+}
+
+// Get receipts for a specific request
+export async function getReceiptsForRequest(requestId: string) {
+    const receipts = await prisma.receipt.findMany({
+        where: { refundRequestId: requestId },
+        orderBy: { createdAt: 'asc' }
+    })
+    return receipts
 }

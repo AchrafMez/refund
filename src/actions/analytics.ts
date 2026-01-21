@@ -1,6 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
+import { getCertificateStats as getCertificateStatsLib } from "@/lib/analytics"
 
 export interface AnalyticsStats {
     totalRequests: number
@@ -45,13 +46,17 @@ export async function getAnalyticsData(startDate: Date, endDate: Date, types: st
     })
 
     const totalRequests = requests.length
-    const pendingRequests = requests.filter(r => r.status !== 'PAID' && r.status !== 'DECLINED')
-    const pendingApproval = pendingRequests.length
-
+    
+    // Pending Approval = ESTIMATED requests waiting for staff to approve/reject
+    const pendingApproval = requests.filter(r => r.status === 'ESTIMATED').length
+    
+    // Requests that have been paid out
     const paidRequests = requests.filter(r => r.status === 'PAID')
 
-    const totalPayouts = paidRequests.reduce((sum, r) => {
-        return sum + (r.amountEst || 0)
+    // Total Payouts = sum of totalAmount (actual verified receipt amounts), fallback to amountEst
+    const totalPayouts = paidRequests.reduce((sum: number, r) => {
+        // Use totalAmount (from receipts) if available, otherwise use estimate
+        return sum + (r.totalAmount || r.amountEst || 0)
     }, 0)
 
     let totalProcessingTime = 0
@@ -80,7 +85,8 @@ export async function getAnalyticsData(startDate: Date, endDate: Date, types: st
         user: r.user.name || r.user.email, // Fallback to email if name missing
         image: r.user.image,
         type: r.type, // Enum value, e.g., 'EQUIPMENT'
-        amount: r.amountEst || 0,
+        // For paid requests, use actual totalAmount; otherwise use estimate
+        amount: r.status === 'PAID' ? (r.totalAmount || r.amountEst || 0) : (r.amountEst || 0),
         submittedAt: r.createdAt,
         completedAt: r.status === 'PAID' ? r.updatedAt : null,
         status: r.status
@@ -88,4 +94,8 @@ export async function getAnalyticsData(startDate: Date, endDate: Date, types: st
 
     return { stats, timeline }
 }
-export { getCertificateStats } from "@/lib/analytics";
+
+// Async wrapper for getCertificateStats (re-exports not allowed in "use server" files)
+export async function getCertificateStats() {
+    return await getCertificateStatsLib();
+}
