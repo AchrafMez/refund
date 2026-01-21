@@ -11,6 +11,7 @@ interface WizardState {
     amount: string
     description: string
     date: Date | undefined
+    title: string
     // New fields for Step 3
     certificateId: string | null
     targetDate: Date | undefined
@@ -27,6 +28,7 @@ const initialData = {
   category: null,
   amount: '',
   description: '',
+  title: '',
   date: undefined,
   certificateId: null,
   targetDate: undefined,
@@ -42,8 +44,8 @@ export const useWizardStore = create<WizardState>()(
       data: initialData,
       setStep: (step) => set({ step }),
       setData: (newData) => set((state) => ({ data: { ...state.data, ...newData } })),
-      reset: () => set({ 
-        step: 1, 
+      reset: () => set({
+        step: 1,
         data: initialData
       }),
     }),

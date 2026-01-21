@@ -724,6 +724,18 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                             {request.user.name || request.user.email}
                         </span>
                     </div>
+
+                    {/* Title Row */}
+                    <div style={{
+                        fontSize: (mounted && isMobile) ? '0.9375rem' : '1rem',
+                        fontWeight: 600,
+                        color: '#18181b',
+                        marginBottom: '0.5rem',
+                        lineHeight: 1.4
+                    }}>
+                        {request.title}
+                    </div>
+
                     {/* Tags row */}
                     <div style={{
                         display: 'flex',

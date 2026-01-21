@@ -20,7 +20,7 @@ export function StepDetails() {
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(false)
   const [isStaff, setIsStaff] = useState(false)
-  
+
   // Modal State
   const [showCertModal, setShowCertModal] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
@@ -51,6 +51,16 @@ export function StepDetails() {
     }
   }, [data.category])
 
+  // Auto-fill title for certification
+  useEffect(() => {
+    if (data.category === 'certification' && data.certificateId) {
+      const cert = certificates.find(c => c.id === data.certificateId)
+      if (cert) {
+        setData({ title: cert.name })
+      }
+    }
+  }, [data.category, data.certificateId, certificates, setData])
+
   // Also fetch when modal opens to ensure fresh data
   useEffect(() => {
     if (showCertModal) {
@@ -72,7 +82,7 @@ export function StepDetails() {
 
   const handleCreateCertificate = async () => {
     if (!newCertData.name || !newCertData.provider || !newCertData.fixedCost) return
-    
+
     setNewCertLoading(true)
     try {
       const newCert = await createCertificate({
@@ -80,7 +90,7 @@ export function StepDetails() {
         provider: newCertData.provider,
         fixedCost: parseFloat(newCertData.fixedCost)
       })
-      
+
       // Refresh list and select new cert
       await fetchCertificates()
       setData({ certificateId: newCert.id })
@@ -93,7 +103,7 @@ export function StepDetails() {
   }
 
   const handleDeleteCertificate = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation() 
+    e.stopPropagation()
     if (!confirm("Are you sure you want to deactivate this certificate? It will be moved to the Inactive list.")) return
 
     setDeleteLoading(id)
@@ -135,8 +145,20 @@ export function StepDetails() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const newErrors: Record<string, string> = {}
-    
+
+    // Enforce title for certification
+    let effectiveTitle = data.title
+    if (data.category === 'certification' && selectedCert) {
+      effectiveTitle = selectedCert.name
+      if (data.title !== effectiveTitle) {
+        setData({ title: effectiveTitle })
+      }
+    }
+
     // Common validations
+    if (!effectiveTitle || effectiveTitle.length < 3) {
+      newErrors.title = "Title must be at least 3 characters"
+    }
     if (!data.description || data.description.length < 5) {
       newErrors.description = "Description must be at least 5 characters"
     }
@@ -203,7 +225,28 @@ export function StepDetails() {
     <>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
+
+          {/* Title Field - Only show if NOT certification */}
+          {data.category !== 'certification' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label htmlFor="title" style={labelStyle}>
+                Title
+              </label>
+              <input
+                id="title"
+                type="text"
+                placeholder="e.g., Conference Registration, equipment purchase..."
+                value={data.title}
+                onChange={(e) => setData({ title: e.target.value })}
+                style={errors.title ? errorInputStyle : inputStyle}
+                autoFocus
+              />
+              {errors.title && (
+                <p style={{ fontSize: '0.8125rem', color: '#ef4444' }}>{errors.title}</p>
+              )}
+            </div>
+          )}
+
           {/* Certificate-specific fields */}
           {data.category === 'certification' && (
             <>
@@ -257,9 +300,9 @@ export function StepDetails() {
               </div>
 
               {selectedCert && (
-                <div style={{ 
-                  padding: '0.75rem', 
-                  backgroundColor: '#f4f4f5', 
+                <div style={{
+                  padding: '0.75rem',
+                  backgroundColor: '#f4f4f5',
                   borderRadius: '0.5rem',
                   fontSize: '0.875rem'
                 }}>
@@ -273,7 +316,7 @@ export function StepDetails() {
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Calendar style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#71717a', width: '1rem', height: '1rem', zIndex: 1 }} />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowCalendar(!showCalendar)}
                     style={{
@@ -291,17 +334,17 @@ export function StepDetails() {
 
                   {showCalendar && (
                     <>
-                      <div 
-                         style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-                         onClick={() => setShowCalendar(false)} 
+                      <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                        onClick={() => setShowCalendar(false)}
                       />
                       <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.5rem', zIndex: 50 }}>
                         <CustomCalendar
                           mode="single"
                           value={data.targetDate ? new Date(data.targetDate) : null}
                           onChange={(date: any) => {
-                             setData({ targetDate: date })
-                             setShowCalendar(false)
+                            setData({ targetDate: date })
+                            setShowCalendar(false)
                           }}
                           onClose={() => setShowCalendar(false)}
                         />
@@ -322,7 +365,7 @@ export function StepDetails() {
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <label htmlFor="departure" style={labelStyle}>Departure</label>
-                  <input 
+                  <input
                     id="departure"
                     type="text"
                     placeholder="e.g., Ben Guerir"
@@ -336,7 +379,7 @@ export function StepDetails() {
                 </div>
                 <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <label htmlFor="destination" style={labelStyle}>Destination</label>
-                  <input 
+                  <input
                     id="destination"
                     type="text"
                     placeholder="e.g., Casablanca (CTM station)"
@@ -356,7 +399,7 @@ export function StepDetails() {
                   <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#71717a', fontSize: '0.875rem' }}>
                     DH
                   </span>
-                  <input 
+                  <input
                     id="amount"
                     type="number"
                     step="0.01"
@@ -385,7 +428,7 @@ export function StepDetails() {
                   <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#71717a', fontSize: '0.875rem' }}>
                     DH
                   </span>
-                  <input 
+                  <input
                     id="amount"
                     type="number"
                     step="0.01"
@@ -403,16 +446,16 @@ export function StepDetails() {
                 )}
               </div>
 
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'flex-start', 
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
                 gap: '0.75rem',
                 padding: '0.75rem',
                 backgroundColor: '#fffbeb',
                 border: '1px solid #fcd34d',
                 borderRadius: '0.5rem'
               }}>
-                <input 
+                <input
                   type="checkbox"
                   id="invoiceCheck"
                   checked={data.invoiceAddressedTo}
@@ -454,10 +497,10 @@ export function StepDetails() {
 
         {/* Buttons */}
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem' }}>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setStep(1)}
-            style={{ 
+            style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.375rem',
@@ -477,9 +520,9 @@ export function StepDetails() {
             <ChevronLeft style={{ width: '1rem', height: '1rem' }} />
             Back
           </button>
-          <button 
+          <button
             type="submit"
-            style={{ 
+            style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.375rem',
@@ -714,20 +757,20 @@ export function StepDetails() {
               }
             }
           `}</style>
-          
+
           <div className="cert-modal-overlay" onClick={() => setShowCertModal(false)} />
           <div className="cert-modal-container">
             <div className="cert-modal-content">
               <div className="cert-modal-header">
                 <h3 className="cert-modal-title">Manage Certificates</h3>
-                <button 
+                <button
                   className="cert-modal-close"
                   onClick={() => setShowCertModal(false)}
                 >
                   <X size={18} />
                 </button>
               </div>
-              
+
               <div className="cert-modal-body">
                 {/* Add New Section */}
                 <div>
@@ -764,8 +807,8 @@ export function StepDetails() {
                       />
                     </div>
                     <div className="cert-input-group">
-                      <label className="cert-label" style={{visibility: 'hidden'}}>&nbsp;</label>
-                      <button 
+                      <label className="cert-label" style={{ visibility: 'hidden' }}>&nbsp;</label>
+                      <button
                         className="cert-btn-add"
                         onClick={handleCreateCertificate}
                         disabled={newCertLoading || !newCertData.name || !newCertData.provider || !newCertData.fixedCost}
@@ -778,7 +821,7 @@ export function StepDetails() {
 
                 {/* Existing List Section */}
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '2rem', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                  
+
                   {/* Active Certificates */}
                   <div>
                     <h4 className="cert-section-title">Active Certificates ({certificates.filter(c => c.active !== false).length})</h4>
@@ -840,15 +883,15 @@ export function StepDetails() {
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                               <button
                                 type="button"
-                                style={{ 
-                                  background: 'none', 
-                                  border: 'none', 
-                                  cursor: 'pointer', 
-                                  color: '#10b981', 
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  color: '#10b981',
                                   padding: '0.25rem',
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center' 
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
                                 }}
                                 onClick={(e) => handleRestoreCertificate(cert.id, e)}
                                 disabled={restoreLoading === cert.id}

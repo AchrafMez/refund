@@ -83,7 +83,7 @@ export function StepSummary() {
       }
 
       await createEstimate({
-        title: `${data.category?.charAt(0).toUpperCase()}${data.category?.slice(1)} Refund`,
+        title: data.title,
         description: data.description,
         amount: parseFloat(data.amount) || 0,
         type: categoryMap[data.category!] || 'OTHER',
@@ -104,7 +104,7 @@ export function StepSummary() {
     } catch (error: any) {
       console.error("Failed to submit request:", error)
       setIsSubmitting(false)
-      
+
       // Check if it's an authentication error
       const errorMessage = error?.message || String(error)
       if (errorMessage.includes("Unauthorized") || errorMessage.includes("session") || errorMessage.includes("auth")) {
@@ -129,6 +129,9 @@ export function StepSummary() {
         </h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
+          <div style={{ color: '#71717a' }}>Title</div>
+          <div style={{ fontWeight: 500, color: '#18181b' }}>{data.title}</div>
+
           <div style={{ color: '#71717a' }}>Category</div>
           <div style={{ fontWeight: 500, color: '#18181b', textTransform: 'capitalize' }}>{data.category}</div>
 
