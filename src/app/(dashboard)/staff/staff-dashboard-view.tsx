@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { CheckCircle2, XCircle, FileText, Calendar, User2, Loader2, Download, Eye, EyeOff, Plus } from "lucide-react"
 import { updateRefundStatus, rejectReceipt, getAllRefundRequests, getStaffTabCounts } from "@/actions/refunds"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Pagination } from "@/components/ui/pagination"
 import { PaginatedResult, PaginationMeta } from "@/types/pagination"
 import { useQuery, useQueryClient } from "@tanstack/react-query" // Removed useSocket import
@@ -26,6 +27,7 @@ interface RefundRequest {
     title: string
     description: string | null
     amountEst: number
+    amountFinal?: number
     totalAmount?: number
     receipts?: Receipt[]
     createdAt: Date
@@ -643,6 +645,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     return (
         <div
             ref={cardRef}
+            onClick={() => router.push(`/staff/${request.id}`)}
             style={{
                 backgroundColor: 'white',
                 border: '1px solid #e4e4e7',
@@ -650,7 +653,8 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                 boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                 transition: 'all 150ms',
                 opacity: isPending ? 0.6 : 1,
-                pointerEvents: isPending ? 'none' : 'auto'
+                pointerEvents: isPending ? 'none' : 'auto',
+                cursor: 'pointer'
             }}
             onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = '#d4d4d8'
@@ -781,7 +785,13 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                 }}>
                     <div style={{ textAlign: (mounted && isMobile) ? 'left' : 'right' }}>
                         <div style={{ fontWeight: 600, color: '#18181b', fontSize: (mounted && isMobile) ? '1rem' : '1.125rem' }}>
-                            {request.amountEst.toFixed(2)} <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>Dhs</span>
+                            {(request.totalAmount && request.totalAmount > 0)
+                                ? request.totalAmount.toFixed(2)
+                                : request.amountEst.toFixed(2)
+                            } <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>Dhs</span>
+                            {(!request.totalAmount || request.totalAmount === 0) && (
+                                <span style={{ color: '#a1a1aa', fontSize: '0.6875rem', fontWeight: 400, marginLeft: '0.375rem' }}>(estimated)</span>
+                            )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: (mounted && isMobile) ? 'flex-start' : 'flex-end', gap: '0.375rem', fontSize: '0.75rem', color: '#71717a', marginTop: '0.125rem' }} suppressHydrationWarning>
                             <Calendar style={{ width: '0.75rem', height: '0.75rem' }} />
@@ -825,7 +835,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 <Download style={{ width: '0.875rem', height: '0.875rem' }} />
                             </button>
                         )}
-                        {request.receiptUrl && (
+                        {request.receipts && request.receipts.length > 0 && (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation()
@@ -924,73 +934,86 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         </div>
                     ) : null}
 
-                    {/* Image/PDF Preview */}
-                    {showPreview && request.receiptUrl && (
+                    {/* Image/PDF Preview - Multiple Receipts */}
+                    {showPreview && request.receipts && request.receipts.length > 0 && (
                         <div style={{
-                            borderRadius: '0.5rem',
-                            overflow: 'hidden',
-                            border: '1px solid #e4e4e7',
-                            maxWidth: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.75rem',
                             marginTop: '0.5rem'
                         }}>
-                            {previewError ? (
-                                <div style={{
-                                    padding: '2rem',
-                                    textAlign: 'center',
-                                    backgroundColor: '#fafafa',
-                                    color: '#71717a',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    gap: '0.75rem'
-                                }}>
-                                    <div style={{
-                                        padding: '0.75rem',
-                                        borderRadius: '50%',
-                                        backgroundColor: '#fee2e2'
-                                    }}>
-                                        <EyeOff style={{ width: '1.25rem', height: '1.25rem', color: '#dc2626' }} />
-                                    </div>
-                                    <div>
-                                        <p style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.25rem' }}>Receipt Missing</p>
-                                        <p style={{ fontSize: '0.75rem' }}>The file could not be loaded. It may have been deleted.</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    {request.receiptUrl.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
-                                        <img
-                                            src={request.receiptUrl}
-                                            alt="Receipt preview"
-                                            onError={() => setPreviewError(true)}
-                                            style={{
-                                                width: '100%',
-                                                maxHeight: '400px',
-                                                objectFit: 'contain',
-                                                backgroundColor: '#f4f4f5'
-                                            }}
-                                        />
-                                    ) : request.receiptUrl.match(/\.pdf$/i) ? (
-                                        <iframe
-                                            src={request.receiptUrl}
-                                            title="Receipt PDF preview"
-                                            onLoad={(e) => {
-                                                // Minimal check for iframe load success
-                                                // Note: cross-origin iframes can't be fully checked for 404s this way
-                                            }}
-                                            style={{
-                                                width: '100%',
-                                                height: '400px',
-                                                border: 'none'
-                                            }}
-                                        />
-                                    ) : (
-                                        <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: '#f4f4f5', color: '#71717a', fontSize: '0.875rem' }}>
-                                            Preview not available for this file type
+                            <div style={{ fontSize: '0.75rem', fontWeight: 500, color: '#71717a' }}>
+                                Previewing {request.receipts.length} receipt{request.receipts.length > 1 ? 's' : ''}:
+                            </div>
+                            {request.receipts.map((receipt: Receipt, index: number) => {
+                                const isImage = /\.(jpeg|jpg|png|gif|webp)$/i.test(receipt.url)
+                                const isPdf = /\.pdf$/i.test(receipt.url)
+                                return (
+                                    <div
+                                        key={receipt.id || index}
+                                        style={{
+                                            borderRadius: '0.5rem',
+                                            overflow: 'hidden',
+                                            border: '1px solid #e4e4e7',
+                                            maxWidth: '100%'
+                                        }}
+                                    >
+                                        <div style={{
+                                            padding: '0.5rem 0.75rem',
+                                            backgroundColor: '#f4f4f5',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            borderBottom: '1px solid #e4e4e7'
+                                        }}>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#18181b' }}>
+                                                Receipt #{index + 1}
+                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                {receipt.amount > 0 && (
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#16a34a' }}>
+                                                        {receipt.amount.toFixed(2)} DH
+                                                    </span>
+                                                )}
+                                                <a
+                                                    href={receipt.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    style={{ fontSize: '0.6875rem', color: '#3b82f6', textDecoration: 'none' }}
+                                                >
+                                                    Open ↗
+                                                </a>
+                                            </div>
                                         </div>
-                                    )}
-                                </>
-                            )}
+                                        {isImage ? (
+                                            <img
+                                                src={receipt.url}
+                                                alt={`Receipt ${index + 1}`}
+                                                style={{
+                                                    width: '100%',
+                                                    maxHeight: '300px',
+                                                    objectFit: 'contain',
+                                                    backgroundColor: '#fafafa'
+                                                }}
+                                            />
+                                        ) : isPdf ? (
+                                            <iframe
+                                                src={receipt.url}
+                                                title={`Receipt ${index + 1} PDF`}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '300px',
+                                                    border: 'none'
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{ padding: '1.5rem', textAlign: 'center', backgroundColor: '#fafafa', color: '#71717a', fontSize: '0.875rem' }}>
+                                                Preview not available - <a href={receipt.url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>View file</a>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
                 </div>

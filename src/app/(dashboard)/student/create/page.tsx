@@ -223,8 +223,8 @@ export default function CreateRequestPage() {
                     <CheckCircle />
                   </span>
                   <span>
-                    <span className="modal-highlight">The refund amount will match your receipt</span>, 
-                    up to a maximum of <span className="modal-cap">$300 CAP</span>
+                    <span className="modal-highlight">Certifications refund will match your receipt</span>, 
+                    up to a maximum of <span className="modal-cap">300$</span>
                   </span>
                 </li>
                 <li className="modal-list-item">
@@ -232,7 +232,7 @@ export default function CreateRequestPage() {
                     <CheckCircle />
                   </span>
                   <span>
-                    Refunds are based on <span className="modal-highlight">actual payment</span>, not estimates.
+                    Refunds are based on <span className="modal-highlight">what you PAID</span>, not estimates.
                   </span>
                 </li>
                 <li className="modal-list-item">
@@ -240,7 +240,7 @@ export default function CreateRequestPage() {
                     <CheckCircle />
                   </span>
                   <span>
-                    Ensure all receipts are addressed to <span className="modal-highlight">LEET INITIATIVE</span>.
+                    Ensure all invoices (Marjan, HyperU, etc.) are addressed to <span className="modal-highlight">LEET INITIATIVE</span>.
                   </span>
                 </li>
               </ul>

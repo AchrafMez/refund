@@ -44,9 +44,9 @@ export function ReceiptList({ receipts, isStaff = false, requestId }: ReceiptLis
         Receipts ({receipts.length})
       </div>
       {receipts.map((receipt) => (
-        <ReceiptItem 
-          key={receipt.id} 
-          receipt={receipt} 
+        <ReceiptItem
+          key={receipt.id}
+          receipt={receipt}
           isStaff={isStaff}
           onUpdate={() => router.refresh()}
         />
@@ -55,11 +55,11 @@ export function ReceiptList({ receipts, isStaff = false, requestId }: ReceiptLis
   )
 }
 
-function ReceiptItem({ 
-  receipt, 
+function ReceiptItem({
+  receipt,
   isStaff,
-  onUpdate 
-}: { 
+  onUpdate
+}: {
   receipt: Receipt
   isStaff: boolean
   onUpdate: () => void
@@ -117,8 +117,8 @@ function ReceiptItem({
           }}
         >
           {isImage ? (
-            <img 
-              src={receipt.url} 
+            <img
+              src={receipt.url}
               alt="Receipt"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
@@ -147,9 +147,9 @@ function ReceiptItem({
             {isImage ? 'Image' : isPdf ? 'PDF Document' : 'File'}
             <ExternalLink style={{ width: '0.75rem', height: '0.75rem', color: '#71717a' }} />
           </a>
-          <p style={{ fontSize: '0.6875rem', color: '#71717a' }}>
-            {new Date(receipt.createdAt).toLocaleDateString('en-US', { 
-              month: 'short', 
+          <p style={{ fontSize: '0.6875rem', color: '#71717a' }} suppressHydrationWarning>
+            {new Date(receipt.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit'
@@ -162,16 +162,16 @@ function ReceiptItem({
       {isStaff ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           <div style={{ position: 'relative' }}>
-            <DollarSign 
-              style={{ 
-                position: 'absolute', 
-                left: '0.5rem', 
-                top: '50%', 
+            <DollarSign
+              style={{
+                position: 'absolute',
+                left: '0.5rem',
+                top: '50%',
                 transform: 'translateY(-50%)',
                 width: '0.875rem',
                 height: '0.875rem',
                 color: '#71717a'
-              }} 
+              }}
             />
             <input
               type="number"
@@ -217,9 +217,9 @@ function ReceiptItem({
           </button>
         </div>
       ) : (
-        <div style={{ 
-          fontSize: '0.875rem', 
-          fontWeight: 600, 
+        <div style={{
+          fontSize: '0.875rem',
+          fontWeight: 600,
           color: receipt.amount > 0 ? '#18181b' : '#a1a1aa',
           whiteSpace: 'nowrap'
         }}>

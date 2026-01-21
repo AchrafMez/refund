@@ -631,6 +631,17 @@ export async function rejectReceipt(id: string, reason: string) {
         type: "REJECTED",
         refundId: id
     })
+
+    // Emit WebSocket event for real-time update
+    emitRefundUpdated(request.userId, {
+        refundId: id,
+        status: "PENDING_RECEIPTS"
+    })
+
+    // Revalidate paths for immediate UI update
+    revalidatePath("/staff")
+    revalidatePath("/student")
+    revalidatePath(`/student/${id}`)
 }
 
 // Staff can edit individual receipt amounts

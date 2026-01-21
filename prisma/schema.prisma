@@ -193,6 +193,7 @@ enum NotificationType {
   APPROVED
   REJECTED
   PAID
+  INFO
 }
 
 model Notification {
