@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { CheckCircle2, XCircle, FileText, Calendar, User2, Loader2, Download, Eye, EyeOff, Plus } from "lucide-react"
+import { AuditHistory } from "@/components/staff/audit-history"
 import { updateRefundStatus, rejectReceipt, getAllRefundRequests, getStaffTabCounts } from "@/actions/refunds"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -292,6 +293,7 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
 function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate' | 'receipt' | 'payout' }) {
     const isEstimate = type === 'estimate'
     const router = useRouter()
+    const queryClient = useQueryClient()
     const [isPending, startTransition] = useTransition()
     const [showPreview, setShowPreview] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
@@ -303,6 +305,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     // Simple session-based viewed state - starts false (unviewed), becomes true when clicked
     const [hasViewedReceipt, setHasViewedReceipt] = useState(false)
     const [previewError, setPreviewError] = useState(false)
+    const [showHistory, setShowHistory] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -324,6 +327,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const handleAction = (newStatus: "PENDING_RECEIPTS" | "VERIFIED_READY" | "PAID" | "DECLINED", reason?: string, amountFinal?: number) => {
         startTransition(async () => {
             await updateRefundStatus(request.id, newStatus, reason, amountFinal)
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
             router.refresh()
         })
     }
@@ -337,6 +341,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
         if (type === 'receipt') {
             startTransition(async () => {
                 await rejectReceipt(request.id, rejectReason)
+                queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
                 router.refresh()
             })
         } else {
@@ -364,6 +369,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const handleRequestAdditionalReceipt = () => {
         startTransition(async () => {
             await updateRefundStatus(request.id, "PENDING_RECEIPTS", "Staff requested additional receipt(s)")
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
             router.refresh()
         })
     }
@@ -935,7 +941,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                     </div>
 
                     {/* Receipt Status/Preview Section */}
-                    {request.status === 'PENDING_RECEIPTS' ? (
+                    {request.status === 'PENDING_RECEIPTS' && (!request.receipts || request.receipts.length === 0) ? (
                         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '0.5rem', borderTop: '1px solid #e4e4e7', paddingTop: '0.75rem' }}>
                             <div style={{ padding: '0.5rem', borderRadius: '0.375rem', backgroundColor: '#f4f4f5' }}>
                                 <Loader2 className="animate-spin" style={{ width: '1rem', height: '1rem', color: '#71717a' }} />
@@ -1078,8 +1084,8 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />}
                         {type === 'receipt' ? 'Reject Receipt' : 'Reject'}
                     </button>
-                    {/* Request Additional Receipt - only for receipt type */}
-                    {type === 'receipt' && request.status !== 'PENDING_RECEIPTS' && (
+                    {/* Request Additional Receipt - for receipt type when not waiting for first receipt */}
+                    {type === 'receipt' && (request.status !== 'PENDING_RECEIPTS' || (request.receipts && request.receipts.length > 0)) && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation()

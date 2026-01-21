@@ -1,12 +1,26 @@
 import { prisma } from "@/lib/prisma";
 import { AuditAction } from "@prisma/client";
+import { auditLogger } from "./logger";
 
 export async function logActivity(
   userId: string,
   action: AuditAction,
   entityId: string,
-  details?: any
+  details?: Record<string, unknown>
 ) {
+  // 1. Structured Pino Log (for production monitoring & log aggregators)
+  auditLogger.info(
+    {
+      event: "audit_action",
+      userId,
+      action,
+      entityId,
+      details,
+    },
+    `Audit: ${action} on entity ${entityId} by user ${userId}`
+  );
+
+  // 2. Database Log (for in-app history UI)
   try {
     await prisma.auditLog.create({
       data: {
@@ -17,7 +31,10 @@ export async function logActivity(
       },
     });
   } catch (error) {
-    console.error("Failed to create audit log:", error);
+    auditLogger.error(
+      { error, userId, action, entityId },
+      "Failed to create audit log in database"
+    );
     // We don't throw here to avoid failing the main action just because logging failed
   }
 }

@@ -34,12 +34,14 @@ export function useSocketEvents() {
             console.log("[Socket] Received refund:updated:", data.refundId)
             // Invalidate specific refund query
             queryClient.invalidateQueries({ queryKey: ["refund", data.refundId] })
+            // Invalidate audit logs for this refund (real-time Activity History)
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", data.refundId] })
             // Also invalidate list queries
             queryClient.invalidateQueries({ queryKey: ["refunds"] })
             queryClient.invalidateQueries({ queryKey: ["staffTabCounts"] })
             queryClient.invalidateQueries({ queryKey: ["student-history"] }) // Update student history
             queryClient.invalidateQueries({ queryKey: ["analytics"] }) // Update analytics
-            
+
             // Invalidate notifications since status changes create notifications
             queryClient.invalidateQueries({ queryKey: ["notifications"] })
             queryClient.invalidateQueries({ queryKey: ["notificationCount"] })

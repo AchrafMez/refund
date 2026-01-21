@@ -1,14 +1,16 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState, useTransition } from "react"
 import Link from "next/link"
-import { submitReceipt, getRefundRequestById } from "@/actions/refunds"
+import { useRouter } from "next/navigation"
+import { submitReceipt, getRefundRequestById, updateRefundStatus, rejectReceipt } from "@/actions/refunds"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { StatusBadge, RequestStatus } from "@/components/status-badge"
 import { MultiReceiptUpload } from "@/components/student/multi-receipt-upload"
 import { ReceiptList } from "@/components/receipt-list"
-import { ChevronLeft, CalendarDays, CheckCircle2, Clock, FileText, CreditCard, CircleDot, Download } from "lucide-react"
+import { ChevronLeft, CalendarDays, CheckCircle2, Clock, FileText, CreditCard, CircleDot, Download, XCircle, Plus, Loader2 } from "lucide-react"
+import { AuditHistory } from "@/components/staff/audit-history"
 
 interface Receipt {
     id: string
@@ -94,14 +96,23 @@ const getTimelineSteps = (status: RequestStatus, createdDate: string) => {
 export function RequestDetailsView({ request: initialRequest, isStaff = false }: RequestDetailsViewProps) {
     const printRef = useRef<HTMLDivElement>(null)
     const queryClient = useQueryClient()
+    const router = useRouter()
+    const [showHistory, setShowHistory] = useState(false)
+
+    // Staff action states
+    const [isPending, startTransition] = useTransition()
+    const [showRejectDialog, setShowRejectDialog] = useState(false)
+    const [showApproveDialog, setShowApproveDialog] = useState(false)
+    const [rejectReason, setRejectReason] = useState("")
+    const [finalAmount, setFinalAmount] = useState("")
 
     // Use Query for real-time data
     const { data: request } = useQuery({
         queryKey: ["refund", initialRequest.id],
         queryFn: async () => {
-             const updated = await getRefundRequestById(initialRequest.id)
-             if (!updated) throw new Error("Request not found")
-             return {
+            const updated = await getRefundRequestById(initialRequest.id)
+            if (!updated) throw new Error("Request not found")
+            return {
                 id: updated.id,
                 title: updated.title,
                 amount: updated.amountEst,
@@ -118,7 +129,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                     createdAt: typeof r.createdAt === 'string' ? r.createdAt : r.createdAt.toISOString()
                 })),
                 user: updated.user
-             }
+            }
         },
         initialData: initialRequest
     })
@@ -126,12 +137,55 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     const status = request.status as RequestStatus
     const receipts = request.receipts || []
     const totalAmount = request.totalAmount || receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
+    const isReceiptType = receipts.length > 0 || status === 'VERIFIED_READY' || status === 'PENDING_RECEIPTS'
 
     const handleUploadComplete = () => {
         queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
+        queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
     }
 
     const timelineSteps = getTimelineSteps(status, request.date)
+
+    // Staff action handlers
+    const handleRejectReceipt = () => {
+        setShowRejectDialog(true)
+    }
+
+    const confirmReject = () => {
+        startTransition(async () => {
+            await rejectReceipt(request.id, rejectReason)
+            queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
+            router.refresh()
+        })
+        setShowRejectDialog(false)
+        setRejectReason("")
+    }
+
+    const handleRequestMore = () => {
+        startTransition(async () => {
+            await updateRefundStatus(request.id, "PENDING_RECEIPTS", "Staff requested additional receipt(s)")
+            queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
+            router.refresh()
+        })
+    }
+
+    const handleVerifyPay = () => {
+        setFinalAmount(totalAmount.toString())
+        setShowApproveDialog(true)
+    }
+
+    const confirmVerifyPay = () => {
+        startTransition(async () => {
+            const amount = parseFloat(finalAmount)
+            await updateRefundStatus(request.id, "PAID", undefined, isNaN(amount) ? undefined : amount)
+            queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
+            router.refresh()
+        })
+        setShowApproveDialog(false)
+    }
 
     const handleDownloadPDF = async () => {
         try {
@@ -514,14 +568,14 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                         {receipts.length > 0 ? 'Additional Receipt Requested' : 'Action Required'}
                                     </h3>
                                     <p style={{ fontSize: '0.875rem', color: receipts.length > 0 ? '#ea580c' : '#a16207', marginBottom: '1rem' }}>
-                                        {receipts.length > 0 
+                                        {receipts.length > 0
                                             ? 'Staff has requested additional receipt(s). Please upload more documentation to proceed.'
                                             : 'Please upload your receipt(s) for this expense to proceed with verification.'
                                         }
                                     </p>
-                                    <MultiReceiptUpload 
-                                        requestId={request.id} 
-                                        onUploadComplete={handleUploadComplete} 
+                                    <MultiReceiptUpload
+                                        requestId={request.id}
+                                        onUploadComplete={handleUploadComplete}
                                     />
                                 </div>
                             </div>
@@ -557,7 +611,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     )}
                                 </div>
                                 <div style={{ padding: '1rem 1.5rem' }}>
-                                    <ReceiptList 
+                                    <ReceiptList
                                         receipts={receipts.map((r: Receipt) => ({ ...r, createdAt: new Date(r.createdAt) }))}
                                         isStaff={isStaff}
                                         requestId={request.id}
@@ -657,10 +711,116 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                 </div>
                             </div>
                         </div>
+
+                        {/* Staff Actions - Buttons only */}
+                        {isStaff && status !== 'PAID' && status !== 'DECLINED' && (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                gap: '0.5rem',
+                                flexWrap: 'wrap',
+                                marginTop: '0.5rem'
+                            }}>
+                                {/* Reject Receipt Button */}
+                                <button
+                                    onClick={handleRejectReceipt}
+                                    disabled={isPending || status === 'PENDING_RECEIPTS'}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.375rem',
+                                        padding: '0.5rem 0.875rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.8125rem',
+                                        fontWeight: 500,
+                                        backgroundColor: 'white',
+                                        border: '1px solid #e4e4e7',
+                                        color: (isPending || status === 'PENDING_RECEIPTS') ? '#a1a1aa' : '#71717a',
+                                        cursor: (isPending || status === 'PENDING_RECEIPTS') ? 'not-allowed' : 'pointer',
+                                        opacity: status === 'PENDING_RECEIPTS' ? 0.5 : 1,
+                                        transition: 'all 150ms',
+                                        flex: '0 0 auto'
+                                    }}
+                                    title={status === 'PENDING_RECEIPTS' ? 'Cannot reject while waiting for receipt' : ''}
+                                >
+                                    {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                    Reject Receipt
+                                </button>
+
+                                {/* Request More Button */}
+                                {status !== 'PENDING_RECEIPTS' && status !== 'ESTIMATED' && (
+                                    <button
+                                        onClick={handleRequestMore}
+                                        disabled={isPending}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.375rem',
+                                            padding: '0.5rem 0.875rem',
+                                            borderRadius: '0.375rem',
+                                            fontSize: '0.8125rem',
+                                            fontWeight: 500,
+                                            backgroundColor: 'white',
+                                            border: '1px solid #fbbf24',
+                                            color: '#b45309',
+                                            cursor: isPending ? 'not-allowed' : 'pointer',
+                                            transition: 'all 150ms',
+                                            flex: '0 0 auto'
+                                        }}
+                                    >
+                                        {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <Plus style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                        Request More
+                                    </button>
+                                )}
+
+                                {/* Verify & Pay Button */}
+                                <button
+                                    onClick={handleVerifyPay}
+                                    disabled={isPending}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.375rem',
+                                        padding: '0.5rem 0.875rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.8125rem',
+                                        fontWeight: 500,
+                                        backgroundColor: isPending ? '#52525b' : '#18181b',
+                                        border: 'none',
+                                        color: 'white',
+                                        cursor: isPending ? 'not-allowed' : 'pointer',
+                                        transition: 'all 150ms',
+                                        flex: '0 0 auto'
+                                    }}
+                                >
+                                    {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                    Verify & Pay
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Audit History - For all users */}
+                        <div
+                            style={{
+                                backgroundColor: 'white',
+                                border: '1px solid #e4e4e7',
+                                borderRadius: '0.75rem',
+                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            <div style={{ padding: '0.5rem 1.5rem' }}>
+                                <AuditHistory
+                                    refundId={request.id}
+                                    isOpen={showHistory}
+                                    onToggle={() => setShowHistory(!showHistory)}
+                                />
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Sidebar / Timeline */}
-                    <div className="lg:col-span-1 mt-6 lg:mt-0">
+                    {/* Sidebar / Timeline - Commented out per user request */}
+                    {/* <div className="lg:col-span-1 mt-6 lg:mt-0">
                         <div
                             style={{
                                 backgroundColor: 'white',
@@ -690,7 +850,6 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
 
                                         return (
                                             <div key={step.id} style={{ display: 'flex', gap: '1rem' }}>
-                                                {/* Icon & Line */}
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                                     <div style={{
                                                         width: '2rem',
@@ -721,8 +880,6 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                                         }} />
                                                     )}
                                                 </div>
-
-                                                {/* Content */}
                                                 <div style={{ paddingBottom: isLast ? 0 : '1.5rem', flex: 1 }}>
                                                     <div style={{
                                                         fontSize: '0.875rem',
@@ -755,9 +912,189 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             </div>
+
+            {/* Reject Dialog */}
+            {showRejectDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowRejectDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
+                            Reject Receipt
+                        </h3>
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            Please provide a reason for rejecting this receipt. The student will be notified.
+                        </p>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Enter rejection reason..."
+                            style={{
+                                width: '100%',
+                                minHeight: '5rem',
+                                padding: '0.75rem',
+                                borderRadius: '0.375rem',
+                                border: '1px solid #e4e4e7',
+                                fontSize: '0.875rem',
+                                resize: 'vertical',
+                                marginBottom: '1rem'
+                            }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowRejectDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmReject}
+                                disabled={!rejectReason.trim()}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: 'none',
+                                    backgroundColor: rejectReason.trim() ? '#dc2626' : '#fca5a5',
+                                    color: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: rejectReason.trim() ? 'pointer' : 'not-allowed'
+                                }}
+                            >
+                                Reject Receipt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Verify & Pay Dialog */}
+            {showApproveDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowApproveDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
+                            Set Final Refund Amount
+                        </h3>
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            Enter the final refund amount. The student will be notified that their refund is ready.
+                        </p>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{
+                                display: 'block',
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                color: '#18181b',
+                                marginBottom: '0.375rem'
+                            }}>
+                                Final Refund Amount (DH)
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={finalAmount}
+                                onChange={(e) => setFinalAmount(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.625rem 0.75rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    fontSize: '0.875rem'
+                                }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowApproveDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmVerifyPay}
+                                disabled={isPending}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: 'none',
+                                    backgroundColor: isPending ? '#52525b' : '#18181b',
+                                    color: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: isPending ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem'
+                                }}
+                            >
+                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                Mark as Paid
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
