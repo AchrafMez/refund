@@ -37,7 +37,7 @@ export function StepDetails() {
   useEffect(() => {
     const checkStaffRole = async () => {
       const session = await authClient.getSession()
-      if (session?.data?.user?.role === 'STAFF' || session?.data?.user?.role === 'ADMIN') {
+      if ((session?.data?.user as any)?.role === 'STAFF' || (session?.data?.user as any)?.role === 'ADMIN') {
         setIsStaff(true)
       }
     }

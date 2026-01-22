@@ -33,7 +33,7 @@ export default function CreateRequestPage() {
   useEffect(() => {
     const checkStaffRole = async () => {
       const session = await authClient.getSession()
-      if (session?.data?.user?.role === 'STAFF' || session?.data?.user?.role === 'ADMIN') {
+      if ((session?.data?.user as any)?.role === 'STAFF' || (session?.data?.user as any)?.role === 'ADMIN') {
         setIsStaff(true)
       }
     }
@@ -42,10 +42,10 @@ export default function CreateRequestPage() {
 
   const handleBack = () => {
     if (step === 1) {
-        reset()
-        router.push("/student")
+      reset()
+      router.push("/student")
     } else {
-        setStep(step - 1)
+      setStep(step - 1)
     }
   }
 
@@ -202,7 +202,7 @@ export default function CreateRequestPage() {
             height: 1rem;
           }
         `}</style>
-        
+
         <div className="modal-overlay" />
         <div className="modal-container">
           <div className="modal-content">
@@ -214,7 +214,7 @@ export default function CreateRequestPage() {
                 Important Information
               </h2>
             </div>
-            
+
             <div className="modal-body">
               <p className="modal-intro">Before you proceed, please note:</p>
               <ul className="modal-list">
@@ -223,7 +223,7 @@ export default function CreateRequestPage() {
                     <CheckCircle />
                   </span>
                   <span>
-                    <span className="modal-highlight">Certifications refund will match your receipt</span>, 
+                    <span className="modal-highlight">Certifications refund will match your receipt</span>,
                     up to a maximum of <span className="modal-cap">300$</span>
                   </span>
                 </li>
@@ -245,9 +245,9 @@ export default function CreateRequestPage() {
                 </li>
               </ul>
             </div>
-            
+
             <div className="modal-footer">
-              <button 
+              <button
                 className="modal-button"
                 onClick={() => setShowDisclaimer(false)}
               >
@@ -400,9 +400,9 @@ export default function CreateRequestPage() {
       {/* Header */}
       <div className="wizard-header">
         <div className="wizard-header-top">
-          <button 
+          <button
             onClick={handleBack}
-            style={{ 
+            style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -445,13 +445,13 @@ export default function CreateRequestPage() {
             const Icon = s.icon
             const isActive = step === s.id
             const isCompleted = step > s.id
-            
+
             return (
               <div key={s.id} style={{ display: 'flex', alignItems: 'flex-start', flex: index < steps.length - 1 ? 1 : 'none' }}>
                 {/* Step Item */}
                 <div className="step-item">
-                  <div 
-                    style={{ 
+                  <div
+                    style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -473,20 +473,20 @@ export default function CreateRequestPage() {
                       <Icon style={{ width: '0.875rem', height: '0.875rem' }} />
                     )}
                   </div>
-                  <span 
+                  <span
                     className="step-label"
-                    style={{ 
+                    style={{
                       color: isActive || isCompleted ? '#18181b' : '#71717a',
                     }}
                   >
                     {s.label}
                   </span>
                 </div>
-                
+
                 {/* Connecting Line */}
                 {index < steps.length - 1 && (
-                  <div 
-                    style={{ 
+                  <div
+                    style={{
                       flex: 1,
                       height: '2px',
                       margin: '0 0.5rem',
@@ -496,8 +496,8 @@ export default function CreateRequestPage() {
                       overflow: 'hidden'
                     }}
                   >
-                    <div 
-                      style={{ 
+                    <div
+                      style={{
                         height: '100%',
                         backgroundColor: '#18181b',
                         transition: 'width 300ms',
@@ -523,7 +523,7 @@ export default function CreateRequestPage() {
       <div className="warning-container">
         <AlertCircle className="warning-icon" size={18} />
         <p className="warning-text">
-          <strong>Important:</strong> Please ensure your submission is valid and accurate. 
+          <strong>Important:</strong> Please ensure your submission is valid and accurate.
           Submitting a request that does not make sense will lead to severe punishment.
         </p>
       </div>

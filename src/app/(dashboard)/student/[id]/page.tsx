@@ -41,7 +41,7 @@ export default async function RequestDetailsPage({ params }: { params: Promise<{
     description: request.description,
     amount: request.amountEst,
     totalAmount: request.totalAmount,
-    receiptUrl: request.receiptUrl || null,
+    receiptUrl: request.receipts?.[0]?.url || null,
     receipts: serializedReceipts,
     user: request.user
   }

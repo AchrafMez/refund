@@ -121,7 +121,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                 status: updated.status,
                 category: updated.type,
                 description: updated.description,
-                receiptUrl: updated.receiptUrl,
+                receiptUrl: updated.receipts?.[0]?.url || null,
                 receipts: (updated.receipts || []).map((r: any) => ({
                     id: r.id,
                     url: r.url,

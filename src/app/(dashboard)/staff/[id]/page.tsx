@@ -8,18 +8,18 @@ import { prisma } from "@/lib/prisma"
 
 export default async function StaffRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  
+
   // Check staff access
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
     notFound()
   }
-  
+
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { role: true }
   })
-  
+
   if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
     notFound()
   }
@@ -47,7 +47,7 @@ export default async function StaffRequestDetailsPage({ params }: { params: Prom
     description: request.description,
     amount: request.amountEst,
     totalAmount: request.totalAmount,
-    receiptUrl: request.receiptUrl || null,
+    receiptUrl: serializedReceipts[0]?.url || null,
     receipts: serializedReceipts,
     user: request.user
   }

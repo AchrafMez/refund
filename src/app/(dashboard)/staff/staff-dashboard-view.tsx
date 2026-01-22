@@ -17,6 +17,8 @@ interface Receipt {
     amount: number
 }
 
+import { RefundType, RefundStatus } from "@prisma/client"
+
 interface RefundRequest {
     id: string
     userId: string
@@ -28,15 +30,27 @@ interface RefundRequest {
     title: string
     description: string | null
     amountEst: number
-    amountFinal?: number
-    totalAmount?: number
-    receipts?: Receipt[]
+    amountFinal: number | null
+    totalAmount: number
+    receipts: Receipt[]
     createdAt: Date
     updatedAt: Date
-    status: string
-    type: string
-    receiptUrl: string | null
+    status: RefundStatus
+    type: RefundType
     staffNote: string | null
+    // Additional fields from schema
+    targetDate: Date | null
+    departure: string | null
+    destination: string | null
+    invoiceAddressedTo: string | null
+    certificateId: string | null
+    certificate?: {
+        id: string
+        name: string
+        provider: string
+        fixedCost: number
+        currency: string
+    } | null
 }
 
 interface TabCounts {
@@ -521,8 +535,9 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
             // ========================================
             // RECEIPT SECTION (if exists)
             // ========================================
-            if (request.receiptUrl) {
-                const isImage = /\.(jpeg|jpg|png|gif|webp)$/i.test(request.receiptUrl)
+            if (request.receipts && request.receipts.length > 0) {
+                const receiptUrl = request.receipts[0].url
+                const isImage = /\.(jpeg|jpg|png|gif|webp)$/i.test(receiptUrl)
 
                 if (isImage) {
                     // Add receipt on a new page for proper sizing
@@ -567,7 +582,8 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
 
                     // Try to embed the actual image
                     try {
-                        const response = await fetch(request.receiptUrl)
+                        const receiptUrl = request.receipts[0].url
+                        const response = await fetch(receiptUrl)
                         const blob = await response.blob()
                         const base64 = await new Promise<string>((resolve) => {
                             const reader = new FileReader()
@@ -588,8 +604,9 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         doc.setTextColor(0, 0, 0)
                         doc.text('Image could not be loaded. View online:', margin, receiptY + 10)
 
+                        const receiptUrl = request.receipts[0].url
                         doc.setTextColor(0, 0, 255)
-                        doc.textWithLink(request.receiptUrl, margin, receiptY + 18, { url: request.receiptUrl })
+                        doc.textWithLink(receiptUrl, margin, receiptY + 18, { url: receiptUrl })
                     }
 
                     // Footer for receipt page
@@ -617,10 +634,11 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                     doc.setFont('helvetica', 'normal')
                     doc.setFontSize(9)
                     doc.setTextColor(0, 0, 255)
-                    const displayUrl = request.receiptUrl.length > 70
-                        ? request.receiptUrl.substring(0, 67) + '...'
-                        : request.receiptUrl
-                    doc.textWithLink(displayUrl, margin + 5, yPos + 17, { url: request.receiptUrl })
+                    const receiptUrl = request.receipts[0].url
+                    const displayUrl = receiptUrl.length > 70
+                        ? receiptUrl.substring(0, 67) + '...'
+                        : receiptUrl
+                    doc.textWithLink(displayUrl, margin + 5, yPos + 17, { url: receiptUrl })
                 }
             }
 

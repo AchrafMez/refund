@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { createNotification, notifyAllStaff } from "./notifications"
 import { emitRefundNew, emitRefundUpdated, emitReceiptUploaded } from "@/lib/ws-emitter"
 import { logActivity } from "@/lib/audit"
-import { AuditAction } from "@prisma/client"
+import { AuditAction, Receipt, CertificateCatalog } from "@prisma/client"
 import {
     PaginationParams,
     PaginatedResult,
@@ -18,6 +18,12 @@ import {
 
 type RefundRequest = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>>
 
+// Type for refund request with user and relations
+type RefundRequestWithUser = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>> & {
+    user: { name: string | null; email: string; image: string | null }
+    receipts: Receipt[]
+    certificate: CertificateCatalog | null
+}
 export async function getRefunds(params?: PaginationParams): Promise<PaginatedResult<NonNullable<RefundRequest>>> {
     const session = await auth.api.getSession({
         headers: await headers()
@@ -78,7 +84,16 @@ export async function createCertificate(data: {
         headers: await headers()
     })
 
-    if (!session || (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN')) {
+    if (!session) {
+        throw new Error("Unauthorized");
+    }
+
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
         throw new Error("Unauthorized");
     }
 
@@ -101,7 +116,16 @@ export async function deleteCertificate(id: string) {
         headers: await headers()
     })
 
-    if (!session || (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN')) {
+    if (!session) {
+        throw new Error("Unauthorized");
+    }
+
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
         throw new Error("Unauthorized");
     }
 
@@ -123,7 +147,16 @@ export async function restoreCertificate(id: string) {
         headers: await headers()
     })
 
-    if (!session || (session.user.role !== 'STAFF' && session.user.role !== 'ADMIN')) {
+    if (!session) {
+        throw new Error("Unauthorized");
+    }
+
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
         throw new Error("Unauthorized");
     }
 
@@ -282,9 +315,7 @@ export async function getRefundRequestById(id: string) {
 }
 
 // Type for refund request with user
-type RefundRequestWithUser = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>> & {
-    user: { name: string | null; email: string; image: string | null }
-}
+// (Removed duplicate definition)
 
 interface StaffRequestsParams extends PaginationParams {
     statusFilter?: "Validation" | "Processing" | "Completed" | "Fails" | "all"

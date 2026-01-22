@@ -133,6 +133,7 @@ model AuditLog {
 
   @@index([entityId])
   @@index([userId])
+  @@map("audit_log")
 }
 
 model Receipt {

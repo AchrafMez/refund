@@ -24,8 +24,9 @@ type RefundPayload = {
 
 type RefundUpdatePayload = {
     refundId: string
-    status: string
+    status?: string
     receiptUrl?: string | null
+    totalAmount?: number
 }
 
 /**
@@ -127,8 +128,15 @@ export async function emitRefundNew(refund: RefundPayload) {
 export async function emitRefundUpdated(userId: string, update: RefundUpdatePayload) {
     await tryQueueOrDirect(
         async () => {
-            const { queueRefundUpdated } = await import("./queue")
-            await queueRefundUpdated(userId, update.refundId, update.status)
+            // Only queue if we have a status update
+            if (update.status) {
+                const { queueRefundUpdated } = await import("./queue")
+                await queueRefundUpdated(userId, update.refundId, update.status)
+            } else {
+                // Direct emit for non-status updates (like totalAmount changes)
+                emitDirectToUser(userId, "refund:updated", update)
+                emitDirectToStaff("refund:updated", update)
+            }
         },
         () => {
             emitDirectToUser(userId, "refund:updated", update)
