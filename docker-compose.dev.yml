@@ -47,6 +47,7 @@ services:
       - .:/app
       - node_modules_dev:/app/node_modules
       - next_cache_dev:/app/.next
+      - uploads_data_dev:/app/public/uploads
     ports:
       - "3000:3000"
       - "5555:5555" # Prisma Studio
@@ -63,5 +64,6 @@ volumes:
   redis_data_dev:
   node_modules_dev:
   next_cache_dev:
+  uploads_data_dev:
 
 

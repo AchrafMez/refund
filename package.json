@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch server.ts",
     "build": "next build",
+    "build:server": "esbuild server.ts --bundle --platform=node --packages=external --outfile=dist/server.js",
     "start": "NODE_ENV=production node dist/server.js",
     "lint": "eslint",
     "postinstall": "prisma generate"
@@ -50,6 +51,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "esbuild": "^0.27.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

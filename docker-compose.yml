@@ -46,6 +46,9 @@ services:
     ports:
       - "3000:3000"
       - "5000:5000"
+      - "5555:5555" # temp port
+    volumes:
+      - uploads_data:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -68,3 +71,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  uploads_data:

@@ -1,16 +1,16 @@
 #!/bin/sh
-# Docker startup script for Refund-Med development
-
 set -e
 
-echo "🔄 Waiting for database to be ready..."
-sleep 3
+# Run migrations
+echo "Running database migrations..."
+if ! node node_modules/prisma/build/index.js migrate deploy; then
+  echo "ERROR: Migrations failed"
+  exit 1
+fi
 
-echo "📦 Installing dependencies..."
-npm install
+# Fix upload permissions
+mkdir -p /app/public/uploads
+chmod -R 775 /app/public/uploads || true
 
-echo "📦 Syncing database schema..."
-npx prisma db push --skip-generate
-
-echo "🚀 Starting development server..."
-exec npm run dev
+echo "Starting server..."
+exec node dist/server.js

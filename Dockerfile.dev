@@ -21,4 +21,4 @@ EXPOSE 3000
 EXPOSE 5555
 
 # Start with the entrypoint script (from mounted volume)
-CMD ["sh", "./scripts/docker-entrypoint.sh"]
+CMD ["sh", "./scripts/docker-entrypoint-dev.sh"]

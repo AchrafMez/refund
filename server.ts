@@ -3,9 +3,11 @@ import { parse } from "url"
 import next from "next"
 import { Server as SocketIOServer } from "socket.io"
 import { prisma } from "./src/lib/prisma"
+import fs from "fs"
+import path from "path"
 
 const dev = process.env.NODE_ENV !== "production"
-const hostname = "localhost"
+const hostname = dev ? "localhost" : "0.0.0.0"
 const port = parseInt(process.env.PORT || "3000", 10)
 const wsPort = parseInt(process.env.WS_PORT || "5000", 10)
 
@@ -23,6 +25,26 @@ app.prepare().then(() => {
     const httpServer = createServer(async (req, res) => {
         try {
             const parsedUrl = parse(req.url!, true)
+            
+            // Serve static uploads
+            if (parsedUrl.pathname?.startsWith('/uploads/')) {
+                const filePath = path.join(process.cwd(), 'public', parsedUrl.pathname)
+                if (fs.existsSync(filePath)) {
+                    const ext = path.extname(filePath).toLowerCase()
+                    const mimeTypes: Record<string, string> = {
+                        '.jpg': 'image/jpeg',
+                        '.jpeg': 'image/jpeg',
+                        '.png': 'image/png',
+                        '.gif': 'image/gif',
+                        '.webp': 'image/webp',
+                        '.pdf': 'application/pdf'
+                    }
+                    res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream')
+                    fs.createReadStream(filePath).pipe(res)
+                    return
+                }
+            }
+            
             await handle(req, res, parsedUrl)
         } catch (err) {
             console.error("Error handling request:", err)
