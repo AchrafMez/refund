@@ -17,12 +17,9 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     connect: (sessionToken: string) => {
         const { socket: existingSocket } = get()
         
-        // Don't create multiple connections
         if (existingSocket?.connected) {
             return
         }
-
-        // Disconnect existing socket if any
         if (existingSocket) {
             existingSocket.disconnect()
         }
@@ -54,7 +51,6 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         })
 
         newSocket.on("pong", () => {
-            // Connection health check response
         })
 
         set({ socket: newSocket })
@@ -69,6 +65,5 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     }
 }))
 
-// Selector hooks for convenience
 export const useSocket = () => useSocketStore((state) => state.socket)
 export const useSocketConnected = () => useSocketStore((state) => state.isConnected)

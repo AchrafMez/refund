@@ -7,8 +7,6 @@ export interface CertificateStats {
 }
 
 export async function getCertificateStats(): Promise<CertificateStats> {
-  // 1. Popular Certificates
-  // Group by certificateId and count
   const popularRaw = await prisma.refundRequest.groupBy({
     by: ["certificateId"],
     _count: {
@@ -26,7 +24,6 @@ export async function getCertificateStats(): Promise<CertificateStats> {
     take: 5,
   });
 
-  // Fetch names
   const popularCerts = await Promise.all(
     popularRaw.map(async (item) => {
       const cert = await prisma.certificateCatalog.findUnique({
@@ -40,15 +37,11 @@ export async function getCertificateStats(): Promise<CertificateStats> {
     })
   );
 
-  // 2. Validation Rate (Approved vs Rejected)
-  // We consider "PAID" and "VERIFIED_READY" (approved by logic) vs "DECLINED"
-  // Or strictly PAID vs DECLINED as completed states.
-  // Prompt says: "Validation rate: Approved vs Rejected"
   const [approvedCount, rejectedCount] = await Promise.all([
     prisma.refundRequest.count({
       where: {
         type: "CERTIFICATION",
-        status: { in: ["PAID", "VERIFIED_READY"] }, // Assuming these mean approved/valid
+        status: { in: ["PAID", "VERIFIED_READY"] }, 
       },
     }),
     prisma.refundRequest.count({
@@ -64,8 +57,6 @@ export async function getCertificateStats(): Promise<CertificateStats> {
     ? (approvedCount / totalDecided) * 100 
     : 0;
 
-  // 3. Average Completion Time
-  // Creation to Last Update for PAID requests
   const completedRequests = await prisma.refundRequest.findMany({
     where: {
       type: "CERTIFICATION",
@@ -82,7 +73,7 @@ export async function getCertificateStats(): Promise<CertificateStats> {
     totalDays = completedRequests.reduce((acc, req) => {
       const diff = req.updatedAt.getTime() - req.createdAt.getTime();
       return acc + diff;
-    }, 0) / (1000 * 60 * 60 * 24); // ms to days
+    }, 0) / (1000 * 60 * 60 * 24); 
   }
 
   const avgCompletionDays = completedRequests.length > 0 

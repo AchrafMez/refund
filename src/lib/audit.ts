@@ -4,6 +4,7 @@ import { auditLogger } from "./logger";
 
 export async function logActivity(
   userId: string,
+  userName: string, // Added userName
   action: AuditAction,
   entityId: string,
   details?: Record<string, any>
@@ -13,11 +14,12 @@ export async function logActivity(
     {
       event: "audit_action",
       userId,
+      userName,
       action,
       entityId,
       details,
     },
-    `Audit: ${action} on entity ${entityId} by user ${userId}`
+    `Audit: ${action} on entity ${entityId} by user ${userName || userId}`
   );
 
   // 2. Database Log (for in-app history UI)

@@ -22,7 +22,7 @@ export function ReceiptUpload({ onUploadComplete }: { onUploadComplete: (url: st
     accept: {
       'image/png': ['.png'],
       'image/jpeg': ['.jpg', '.jpeg'],
-      'application/pdf': ['.pdf']
+      // 'application/pdf': ['.pdf']
     }
   })
 

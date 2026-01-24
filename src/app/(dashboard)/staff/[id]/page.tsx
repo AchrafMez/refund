@@ -20,7 +20,7 @@ export default async function StaffRequestDetailsPage({ params }: { params: Prom
     select: { role: true }
   })
 
-  if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
+  if (!currentUser || (currentUser.role !== 'STAFF')) {
     notFound()
   }
 

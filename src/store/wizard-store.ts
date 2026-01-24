@@ -12,12 +12,11 @@ interface WizardState {
     description: string
     date: Date | undefined
     title: string
-    // New fields for Step 3
     certificateId: string | null
     targetDate: Date | undefined
     departure: string
     destination: string
-    invoiceAddressedTo: boolean // Checkbox: Invoice addressed to LEET INITIATIVE
+    invoiceAddressedTo: boolean 
   }
   setStep: (step: number) => void
   setData: (data: Partial<WizardState['data']>) => void

@@ -137,7 +137,7 @@ export function MultiReceiptUpload({ requestId, onUploadComplete }: MultiReceipt
           Drag & drop multiple files or click to browse
         </p>
         <p style={{ fontSize: '0.75rem', color: '#a1a1aa', marginTop: '0.25rem' }}>
-          PNG, JPG, PDF • Max 10MB each
+          PNG, JPG, JPEG • Max 10MB each
         </p>
       </div>
 

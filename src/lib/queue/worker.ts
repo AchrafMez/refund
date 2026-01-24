@@ -2,7 +2,6 @@ import { Worker, Job } from "bullmq"
 import { Server as SocketIOServer } from "socket.io"
 import { NotificationJobData } from "./notification-queue"
 
-// Redis connection URL for worker
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379"
 
 let worker: Worker<NotificationJobData> | null = null
@@ -24,7 +23,6 @@ export function initNotificationWorker(io: SocketIOServer) {
             console.log(`[Worker] Processing job ${job.id}: ${type}`)
 
             try {
-                // Emit to appropriate target
                 switch (target.type) {
                     case "user":
                         if (target.userId) {
@@ -45,18 +43,17 @@ export function initNotificationWorker(io: SocketIOServer) {
                 return { success: true, emittedAt: new Date().toISOString() }
             } catch (error) {
                 console.error(`[Worker] Failed to process job ${job.id}:`, error)
-                throw error // This will trigger a retry
+                throw error 
             }
         },
         {
             connection: {
                 url: redisUrl,
             },
-            concurrency: 5, // Process up to 5 jobs concurrently
+            concurrency: 5,
         }
     )
 
-    // Event handlers
     worker.on("completed", (job) => {
         console.log(`[Worker] Job ${job.id} completed`)
     })
@@ -73,9 +70,6 @@ export function initNotificationWorker(io: SocketIOServer) {
     return worker
 }
 
-/**
- * Gracefully shutdown the worker
- */
 export async function shutdownWorker() {
     if (worker) {
         await worker.close()

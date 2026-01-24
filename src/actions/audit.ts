@@ -30,7 +30,7 @@ export async function getRefundAuditLogs(
         throw new Error("Unauthorized");
     }
 
-    // Check permission: Staff/Admin or Owner
+    // Check permission: Staff
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true },
@@ -41,7 +41,7 @@ export async function getRefundAuditLogs(
         select: { userId: true },
     });
 
-    const isStaff = user?.role === "STAFF" || user?.role === "ADMIN";
+    const isStaff = user?.role === "STAFF";
     const isOwner = request?.userId === session.user.id;
 
     if (!isStaff && !isOwner) {
@@ -53,7 +53,7 @@ export async function getRefundAuditLogs(
     }
 
     auditLogger.info(
-        { refundId, requestedBy: session.user.id },
+        { refundId, requestedBy: session.user.name || session.user.email || session.user.id },
         "Fetching audit logs"
     );
 

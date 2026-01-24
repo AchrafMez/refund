@@ -13,14 +13,13 @@ export const logger = pino({
                 ignore: 'pid,hostname',
             },
         }
-        : undefined, // In production, output raw JSON for log aggregators
+        : undefined,
     base: {
         env: process.env.NODE_ENV,
         service: 'refund-platform',
     },
 });
 
-// Child loggers for specific modules
 export const auditLogger = logger.child({ module: 'audit' });
 export const authLogger = logger.child({ module: 'auth' });
 export const apiLogger = logger.child({ module: 'api' });

@@ -33,7 +33,7 @@ export default function CreateRequestPage() {
   useEffect(() => {
     const checkStaffRole = async () => {
       const session = await authClient.getSession()
-      if ((session?.data?.user as any)?.role === 'STAFF' || (session?.data?.user as any)?.role === 'ADMIN') {
+      if ((session?.data?.user as any)?.role === 'STAFF') {
         setIsStaff(true)
       }
     }

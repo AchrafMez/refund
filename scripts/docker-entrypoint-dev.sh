@@ -7,9 +7,12 @@ if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
   npm install
 fi
 
+# Generate Client
+npx prisma generate
+
 # Sync schema
 echo "Syncing database..."
-npx prisma db push --skip-generate
+npx prisma db push
 
 echo "Starting dev server..."
 exec npm run dev

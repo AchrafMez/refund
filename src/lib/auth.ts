@@ -62,9 +62,7 @@ function createAuthInstance() {
 
             mapProfileToUser: async (profile: any) => {
               const isStaff =
-                profile["staff?"] === true ||
-                profile.kind === "admin" ||
-                profile.kind === "external";
+                profile["staff?"] === true;
 
               return {
                 name:

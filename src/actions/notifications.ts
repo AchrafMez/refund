@@ -122,13 +122,8 @@ export async function notifyAllStaff(data: {
             where: { role: "STAFF" },
             select: { id: true }
         })
-
-        const adminUsers = await prisma.user.findMany({
-            where: { role: "ADMIN" },
-            select: { id: true }
-        })
-
-        const allStaff = [...staffUsers, ...adminUsers]
+        
+        const allStaff = [...staffUsers]
 
         if (allStaff.length === 0) {
             return

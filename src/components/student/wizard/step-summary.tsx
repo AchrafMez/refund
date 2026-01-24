@@ -22,7 +22,7 @@ export function StepSummary() {
     getUserRole().then(setUserRole)
   }, [])
 
-  const isStaff = userRole === 'STAFF' || userRole === 'ADMIN'
+  const isStaff = userRole === 'STAFF'
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {

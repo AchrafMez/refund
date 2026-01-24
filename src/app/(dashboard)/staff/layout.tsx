@@ -8,7 +8,7 @@ export default async function StaffLayout({
 }: {
     children: React.ReactNode
 }) {
-    // Check if user is staff or admin
+    // Check if user is staff
     const session = await auth.api.getSession({
         headers: await headers()
     })
@@ -23,7 +23,7 @@ export default async function StaffLayout({
         select: { role: true }
     })
 
-    if (!user || (user.role !== "STAFF" && user.role !== "ADMIN")) {
+    if (!user || (user.role !== "STAFF")) {
         redirect("/student?unauthorized=staff")
     }
 

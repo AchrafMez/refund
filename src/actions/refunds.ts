@@ -18,7 +18,6 @@ import {
 
 type RefundRequest = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>>
 
-// Type for refund request with user and relations
 type RefundRequestWithUser = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>> & {
     user: { name: string | null; email: string; image: string | null }
     receipts: Receipt[]
@@ -45,7 +44,7 @@ export async function getRefunds(params?: PaginationParams): Promise<PaginatedRe
             orderBy: { createdAt: 'desc' },
             skip: getSkip(page, pageSize),
             take: pageSize,
-            include: { receipts: true } // Include receipts for display
+            include: { receipts: true }             
         }),
         prisma.refundRequest.count({
             where: { userId: session.user.id }
@@ -58,7 +57,6 @@ export async function getRefunds(params?: PaginationParams): Promise<PaginatedRe
     }
 }
 
-// Fetch Certificate Catalog for dropdown - Returns ALL for management, frontend filters for dropdown
 export async function getCertificates() {
     const certificates = await prisma.certificateCatalog.findMany({
         select: {
@@ -93,7 +91,7 @@ export async function createCertificate(data: {
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
+    if (!currentUser || (currentUser.role !== 'STAFF' )){
         throw new Error("Unauthorized");
     }
 
@@ -125,7 +123,7 @@ export async function deleteCertificate(id: string) {
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
+    if (!currentUser || (currentUser.role !== 'STAFF')){
         throw new Error("Unauthorized");
     }
 
@@ -156,7 +154,7 @@ export async function restoreCertificate(id: string) {
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== 'STAFF' && currentUser.role !== 'ADMIN')) {
+    if (!currentUser || (currentUser.role !== 'STAFF')) {
         throw new Error("Unauthorized");
     }
 
@@ -176,9 +174,9 @@ export async function restoreCertificate(id: string) {
 export async function createEstimate(data: {
     title: string;
     description: string;
-    amount: number; // User's estimate
+    amount: number;
     type: "EQUIPMENT" | "CERTIFICATION" | "TRAVEL" | "OTHER";
-    receiptUrl?: string; // Optional initial receipt (legacy support or single upload)
+    receiptUrl?: string;
     certificateId?: string;
     targetDate?: Date;
     departure?: string;
@@ -198,53 +196,48 @@ export async function createEstimate(data: {
         select: { role: true }
     })
 
-    const isStaff = user?.role === "STAFF" || user?.role === "ADMIN"
+    const isStaff = user?.role === "STAFF" 
     const status = isStaff ? "VERIFIED_READY" : "ESTIMATED"
 
     let finalAmount = data.amount;
-    let finalTotalAmount = 0; // Default for non-certs
+    let finalTotalAmount = 0;
 
-    // Logic for Certificates
     if (data.type === "CERTIFICATION" && data.certificateId) {
         const cert = await prisma.certificateCatalog.findUnique({
             where: { id: data.certificateId }
         });
         if (cert) {
             finalAmount = cert.fixedCost;
-            finalTotalAmount = cert.fixedCost; // Auto-set total for certs
+            finalTotalAmount = cert.fixedCost;
         }
     }
 
-    // Create the request
     const request = await prisma.refundRequest.create({
         data: {
             userId: session.user.id,
             title: data.title,
             description: data.description,
             amountEst: finalAmount,
-            totalAmount: finalTotalAmount, // Set cached total
+            totalAmount: finalTotalAmount,
             type: data.type,
             status,
-            // New fields
             certificateId: data.certificateId,
             targetDate: data.targetDate,
             departure: data.departure,
             destination: data.destination,
             invoiceAddressedTo: data.invoiceAddressedTo,
-            // Create a receipt if URL provided (legacy/compat)
             ...(data.receiptUrl ? {
                 receipts: {
                     create: {
                         url: data.receiptUrl,
-                        amount: 0 // Initial receipts might determine cost later
+                        amount: 0
                     }
                 }
             } : {})
         }
     })
 
-    // Log Activity
-    await logActivity(session.user.id, AuditAction.CREATE, request.id, {
+    await logActivity(session.user.id, session.user.name || session.user.email || "Unknown", AuditAction.CREATE, request.id, {
         type: data.type,
         amountEst: finalAmount,
         title: data.title
@@ -304,7 +297,7 @@ export async function getRefundRequestById(id: string) {
         select: { role: true }
     })
 
-    const isStaff = currentUser?.role === 'STAFF' || currentUser?.role === 'ADMIN'
+    const isStaff = currentUser?.role === 'STAFF'
     const isOwner = request.userId === session.user.id
 
     if (!isStaff && !isOwner) {
@@ -353,7 +346,7 @@ export async function getAllRefundRequests(params?: StaffRequestsParams): Promis
         select: { role: true }
     })
 
-    if (!user || (user.role !== "STAFF" && user.role !== "ADMIN")) {
+    if (!user || (user.role !== "STAFF")) {
         return {
             data: [],
             pagination: calculatePagination(1, DEFAULT_PAGE_SIZE, 0)
@@ -405,7 +398,7 @@ export async function getStaffTabCounts(): Promise<{ Validation: number; receipt
         select: { role: true }
     })
 
-    if (!user || (user.role !== "STAFF" && user.role !== "ADMIN")) {
+    if (!user || (user.role !== "STAFF")) {
         return { Validation: 0, receipts: 0, payouts: 0, fails: 0 }
     }
 
@@ -439,7 +432,7 @@ export async function updateRefundStatus(
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== "STAFF" && currentUser.role !== "ADMIN")) {
+    if (!currentUser || (currentUser.role !== "STAFF")) {
         throw new Error("Unauthorized: Staff access required")
     }
 
@@ -466,7 +459,7 @@ export async function updateRefundStatus(
         newStatus === "PAID" || newStatus === "VERIFIED_READY" ? AuditAction.APPROVE :
             AuditAction.UPDATE;
 
-    await logActivity(session.user.id, action, id, {
+    await logActivity(session.user.id, session.user.name || session.user.email || "Unknown", action, id, {
         oldStatus: request.status,
         newStatus,
         reason
@@ -573,7 +566,7 @@ export async function submitReceipt(id: string, receiptUrl: string, amount: numb
     })
 
     // Log Activity
-    await logActivity(session.user.id, AuditAction.UPLOAD, id, {
+    await logActivity(session.user.id, session.user.name || session.user.email || "Unknown", AuditAction.UPLOAD, id, {
         receiptUrl,
         amount
     });
@@ -617,7 +610,7 @@ export async function rejectReceipt(id: string, reason: string) {
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== "STAFF" && currentUser.role !== "ADMIN")) {
+    if (!currentUser || (currentUser.role !== "STAFF")) {
         throw new Error("Unauthorized: Staff access required")
     }
 
@@ -650,7 +643,7 @@ export async function rejectReceipt(id: string, reason: string) {
     })
 
     // Log Activity
-    await logActivity(session.user.id, AuditAction.REJECT, id, {
+    await logActivity(session.user.id, session.user.name || session.user.email || "Unknown", AuditAction.REJECT, id, {
         target: "receipts",
         reason
     });
@@ -691,7 +684,7 @@ export async function updateReceiptAmount(receiptId: string, newAmount: number) 
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== "STAFF" && currentUser.role !== "ADMIN")) {
+    if (!currentUser || (currentUser.role !== "STAFF")) {
         throw new Error("Unauthorized: Staff access required")
     }
 
@@ -730,7 +723,7 @@ export async function updateReceiptAmount(receiptId: string, newAmount: number) 
     })
 
     // Log the activity
-    await logActivity(session.user.id, AuditAction.UPDATE, receipt.refundRequestId, {
+    await logActivity(session.user.id, session.user.name || session.user.email || "Unknown", AuditAction.UPDATE, receipt.refundRequestId, {
         receiptId,
         oldAmount,
         newAmount,

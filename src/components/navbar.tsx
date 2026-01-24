@@ -126,8 +126,8 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
             style={{
               position: 'absolute',
               top: 0,
-              left: '-100vw', // Extend infinitely to the left (clipped by header overflow)
-              right: (mounted && isMobile) ? 'calc(100% - 220px)' : 'calc(100% - 200px)', // Pinned relative to logo
+              left: '-100vw', 
+              right: (mounted && isMobile) ? 'calc(100% - 220px)' : 'calc(100% - 200px)', 
               bottom: 0,
               backgroundColor: '#f4f4f5',
               clipPath: 'polygon(0 0, 100% 0, calc(100% - 20px) 100%, 0 100%)',
@@ -138,7 +138,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
           {/* Left: Logo + Nav */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
             <Link
-              href={userRole === 'STAFF' || userRole === 'ADMIN' ? "/staff" : "/student"}
+              href={userRole === 'STAFF' ? "/staff" : "/student"}
               style={{
                 fontSize: '1rem',
                 fontWeight: 600,
@@ -161,7 +161,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
             {/* Desktop Navigation Links - only show when role is loaded */}
             {userRole && (mounted ? !isMobile : true) && (
               <nav style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                {(userRole === 'STAFF' || userRole === 'ADMIN' ? staffLinks : studentLinks)
+                {(userRole === 'STAFF' ? staffLinks : studentLinks)
                   .map((link) => {
                     const isBaseLink = link.href === '/staff' || link.href === '/student'
                     const isActive = isBaseLink 
@@ -427,7 +427,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
           }}
         >
           <nav style={{ padding: '0.5rem' }}>
-            {userRole && (userRole === 'STAFF' || userRole === 'ADMIN' ? staffLinks : studentLinks)
+            {userRole && (userRole === 'STAFF' ? staffLinks : studentLinks)
               .map((link) => {
                 const isBaseLink = link.href === '/staff' || link.href === '/student'
                 const isActive = isBaseLink 

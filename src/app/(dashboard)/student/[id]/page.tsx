@@ -22,7 +22,7 @@ export default async function RequestDetailsPage({ params }: { params: Promise<{
       where: { id: session.user.id },
       select: { role: true }
     })
-    isStaff = user?.role === 'STAFF' || user?.role === 'ADMIN'
+    isStaff = user?.role === 'STAFF'
   }
 
   // Serialize receipts
