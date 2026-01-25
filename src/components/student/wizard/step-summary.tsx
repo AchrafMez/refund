@@ -15,12 +15,28 @@ export function StepSummary() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [certificates, setCertificates] = useState<any[]>([])
   const router = useRouter()
 
-  // Fetch user role on mount
+  // Fetch user role and certificates on mount
   useEffect(() => {
     getUserRole().then(setUserRole)
-  }, [])
+    if (data.category === 'certification') {
+      fetchCertificates()
+    }
+  }, [data.category])
+
+  const fetchCertificates = async () => {
+    try {
+      const { getCertificates } = await import('@/actions/refunds')
+      const certs = await getCertificates()
+      setCertificates(certs)
+    } catch (error) {
+      console.error('Failed to fetch certificates:', error)
+    }
+  }
+
+  const selectedCert = certificates.find(c => c.id === data.certificateId)
 
   const isStaff = userRole === 'STAFF'
 
@@ -136,7 +152,12 @@ export function StepSummary() {
           <div style={{ fontWeight: 500, color: '#18181b', textTransform: 'capitalize' }}>{data.category}</div>
 
           <div style={{ color: '#71717a' }}>Estimate</div>
-          <div style={{ fontWeight: 500, color: '#18181b' }}>DH {Number(data.amount).toFixed(2)}</div>
+          <div style={{ fontWeight: 500, color: '#18181b' }}>
+            {data.category === 'certification' && selectedCert ? 
+              `${selectedCert.fixedCost.toFixed(2)} ${selectedCert.currency}` : 
+              `DH ${Number(data.amount).toFixed(2)}`
+            }
+          </div>
         </div>
 
         <div style={{ marginTop: '1rem' }}>
@@ -240,6 +261,28 @@ export function StepSummary() {
           </div>
         )}
       </div>
+
+      {/* Certification Warning */}
+      {data.category === 'certification' && (
+        <div
+          style={{
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fcd34d',
+            borderRadius: '0.75rem',
+            padding: '1rem',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem'
+          }}
+        >
+          <div style={{ fontSize: '0.8125rem', color: '#92400e' }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>Important Note:</p>
+            <p style={{ margin: 0, marginTop: '0.25rem' }}>
+              A refund is only valid and will be processed <strong>after</strong> you have successfully obtained the certificate and uploaded the proof.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Buttons */}
       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem' }}>

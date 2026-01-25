@@ -824,7 +824,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                             {(request.totalAmount && request.totalAmount > 0)
                                 ? request.totalAmount.toFixed(2)
                                 : request.amountEst.toFixed(2)
-                            } <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>Dhs</span>
+                            } <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>{request.certificate?.currency || 'Dhs'}</span>
                             {(!request.totalAmount || request.totalAmount === 0) && (
                                 <span style={{ color: '#a1a1aa', fontSize: '0.6875rem', fontWeight: 400, marginLeft: '0.375rem' }}>(estimated)</span>
                             )}
@@ -1292,7 +1292,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 {request.title}
                             </p>
                             <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
-                                {request.user?.name || request.user?.email} • Estimated: {request.amountEst.toFixed(2)} Dhs
+                                {request.user?.name || request.user?.email} • Estimated: {request.amountEst.toFixed(2)} {request.certificate?.currency || 'Dhs'}
                             </p>
                         </div>
 
@@ -1306,7 +1306,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                     color: '#18181b',
                                     marginBottom: '0.375rem'
                                 }}>
-                                    Final Refund Amount (Dhs)
+                                    Final Refund Amount ({request.certificate?.currency || 'Dhs'})
                                 </label>
                                 <input
                                     type="number"

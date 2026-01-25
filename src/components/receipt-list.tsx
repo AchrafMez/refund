@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from 'react'
-import { FileText, Image, Save, Loader2, ExternalLink, DollarSign } from 'lucide-react'
+import { FileText, Image, Save, Loader2, ExternalLink } from 'lucide-react'
 import { updateReceiptAmount } from '@/actions/refunds'
 import { useRouter } from 'next/navigation'
 
@@ -16,9 +16,10 @@ interface ReceiptListProps {
   receipts: Receipt[]
   isStaff?: boolean
   requestId: string
+  currency?: string
 }
 
-export function ReceiptList({ receipts, isStaff = false, requestId }: ReceiptListProps) {
+export function ReceiptList({ receipts, isStaff = false, requestId, currency = 'DH' }: ReceiptListProps) {
   const router = useRouter()
 
   if (receipts.length === 0) {
@@ -48,6 +49,7 @@ export function ReceiptList({ receipts, isStaff = false, requestId }: ReceiptLis
           key={receipt.id}
           receipt={receipt}
           isStaff={isStaff}
+          currency={currency}
           onUpdate={() => router.refresh()}
         />
       ))}
@@ -58,10 +60,12 @@ export function ReceiptList({ receipts, isStaff = false, requestId }: ReceiptLis
 function ReceiptItem({
   receipt,
   isStaff,
+  currency,
   onUpdate
 }: {
   receipt: Receipt
   isStaff: boolean
+  currency: string
   onUpdate: () => void
 }) {
   const [amount, setAmount] = useState(receipt.amount.toString())
@@ -162,17 +166,19 @@ function ReceiptItem({
       {isStaff ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           <div style={{ position: 'relative' }}>
-            <DollarSign
+            <span
               style={{
                 position: 'absolute',
                 left: '0.5rem',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '0.875rem',
-                height: '0.875rem',
-                color: '#71717a'
+                fontSize: '0.75rem',
+                color: '#71717a',
+                fontWeight: 500
               }}
-            />
+            >
+              {currency === 'USD' ? '$' : ''}
+            </span>
             <input
               type="number"
               step="0.01"
@@ -180,7 +186,7 @@ function ReceiptItem({
               onChange={(e) => setAmount(e.target.value)}
               style={{
                 width: '5.5rem',
-                padding: '0.375rem 0.5rem 0.375rem 1.625rem',
+                padding: currency === 'USD' ? '0.375rem 0.5rem 0.375rem 1.25rem' : '0.375rem 0.5rem',
                 fontSize: '0.8125rem',
                 border: '1px solid',
                 borderColor: hasChanged ? '#fbbf24' : '#e4e4e7',
@@ -223,7 +229,7 @@ function ReceiptItem({
           color: receipt.amount > 0 ? '#18181b' : '#a1a1aa',
           whiteSpace: 'nowrap'
         }}>
-          {receipt.amount > 0 ? `$${receipt.amount.toFixed(2)}` : 'Pending'}
+          {receipt.amount > 0 ? `${receipt.amount.toFixed(2)} ${currency}` : 'Pending'}
         </div>
       )}
     </div>

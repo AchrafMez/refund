@@ -3,13 +3,13 @@
 import { useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { submitReceipt, getRefundRequestById, updateRefundStatus, rejectReceipt } from "@/actions/refunds"
+import { submitReceipt, getRefundRequestById, updateRefundStatus, rejectReceipt, deleteRefundRequest } from "@/actions/refunds"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { StatusBadge, RequestStatus } from "@/components/status-badge"
 import { MultiReceiptUpload } from "@/components/student/multi-receipt-upload"
 import { ReceiptList } from "@/components/receipt-list"
-import { ChevronLeft, CalendarDays, CheckCircle2, Clock, FileText, CreditCard, CircleDot, Download, XCircle, Plus, Loader2 } from "lucide-react"
+import { ChevronLeft, CalendarDays, CheckCircle2, Clock, FileText, CreditCard, CircleDot, Download, XCircle, Plus, Loader2, Trash2 } from "lucide-react"
 import { AuditHistory } from "@/components/staff/audit-history"
 
 interface Receipt {
@@ -36,6 +36,13 @@ interface RequestDetailsViewProps {
             email: string
             image: string | null
         }
+        certificate?: {
+            id: string
+            name: string
+            provider: string
+            fixedCost: number
+            currency: string
+        } | null
     }
     isStaff?: boolean
 }
@@ -103,7 +110,10 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     const [isPending, startTransition] = useTransition()
     const [showRejectDialog, setShowRejectDialog] = useState(false)
     const [showApproveDialog, setShowApproveDialog] = useState(false)
+    const [showDeclineDialog, setShowDeclineDialog] = useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
+    const [declineReason, setDeclineReason] = useState("")
     const [finalAmount, setFinalAmount] = useState("")
 
     // Use Query for real-time data
@@ -128,7 +138,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                     amount: r.amount,
                     createdAt: typeof r.createdAt === 'string' ? r.createdAt : r.createdAt.toISOString()
                 })),
-                user: updated.user
+                user: updated.user,
+                certificate: updated.certificate
             }
         },
         initialData: initialRequest
@@ -162,15 +173,6 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
         setRejectReason("")
     }
 
-    const handleRequestMore = () => {
-        startTransition(async () => {
-            await updateRefundStatus(request.id, "PENDING_RECEIPTS", "Staff requested additional receipt(s)")
-            queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
-            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
-            router.refresh()
-        })
-    }
-
     const handleVerifyPay = () => {
         setFinalAmount(totalAmount.toString())
         setShowApproveDialog(true)
@@ -185,6 +187,58 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
             router.refresh()
         })
         setShowApproveDialog(false)
+    }
+
+    const handleDelete = () => {
+        setShowDeleteDialog(true)
+    }
+
+    const confirmDelete = () => {
+        startTransition(async () => {
+            try {
+                await deleteRefundRequest(request.id)
+                router.push(isStaff ? '/staff' : '/student')
+            } catch (error) {
+                console.error('Delete failed:', error)
+                // Could add toast notification here
+            }
+        })
+        setShowDeleteDialog(false)
+    }
+
+    const handleRequestMore = () => {
+        startTransition(async () => {
+            await updateRefundStatus(request.id, "PENDING_RECEIPTS", "Staff requested additional receipt(s)")
+            queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
+            router.refresh()
+        })
+    }
+
+    // Approve estimate - moves to PENDING_RECEIPTS
+    const handleApproveEstimate = () => {
+        startTransition(async () => {
+            await updateRefundStatus(request.id, "PENDING_RECEIPTS")
+            queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
+            router.refresh()
+        })
+    }
+
+    // Decline estimate - moves to DECLINED
+    const handleDeclineEstimate = () => {
+        setShowDeclineDialog(true)
+    }
+
+    const confirmDeclineEstimate = () => {
+        startTransition(async () => {
+            await updateRefundStatus(request.id, "DECLINED", declineReason || undefined)
+            queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
+            queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
+            router.refresh()
+        })
+        setShowDeclineDialog(false)
+        setDeclineReason("")
     }
 
     const handleDownloadPDF = async () => {
@@ -462,62 +516,360 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     return (
         <div style={{ maxWidth: '64rem', margin: '0 auto' }} ref={printRef}>
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+            <div style={{ 
+                display: 'flex', 
+                alignItems: 'flex-start', 
+                gap: '1rem', 
+                marginBottom: '2rem', 
+                padding: '0 0.5rem' // Mobile padding
+            }}>
+                {/* Back Button */}
                 <Link
-                    href="/student"
+                    href={isStaff ? "/staff" : "/student"}
                     style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: '2.5rem',
-                        height: '2.5rem',
-                        borderRadius: '50%',
-                        backgroundColor: 'transparent',
+                        width: '2.75rem', // Larger touch target
+                        height: '2.75rem',
+                        borderRadius: '0.75rem', // More rounded like cards
+                        backgroundColor: 'white',
                         color: '#71717a',
                         border: '1px solid #e4e4e7',
+                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                         transition: 'all 150ms',
                         flexShrink: 0
                     }}
                     onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#18181b'
-                        e.currentTarget.style.color = 'white'
-                        e.currentTarget.style.borderColor = '#18181b'
+                        e.currentTarget.style.backgroundColor = '#f4f4f5'
+                        e.currentTarget.style.borderColor = '#d4d4d8'
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                        e.currentTarget.style.color = '#71717a'
+                        e.currentTarget.style.backgroundColor = 'white'
                         e.currentTarget.style.borderColor = '#e4e4e7'
                     }}
                 >
                     <ChevronLeft style={{ width: '1.25rem', height: '1.25rem' }} />
                 </Link>
-                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: '#18181b', letterSpacing: '-0.025em' }}>
+                
+                {/* Title and Status Section */}
+                <div style={{ flex: 1, minWidth: 0, paddingTop: '0.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <h1 style={{ 
+                            fontSize: '1.5rem', 
+                            fontWeight: 700, 
+                            color: '#18181b', 
+                            letterSpacing: '-0.025em',
+                            margin: 0,
+                            lineHeight: 1.3,
+                            flex: '1 1 auto',
+                            minWidth: '200px'
+                        }}>
                             {request.title}
                         </h1>
-                        <StatusBadge status={status} />
+                        <div style={{ flexShrink: 0 }}>
+                            <StatusBadge status={status} />
+                        </div>
+                    </div>
+                    
+                    {/* Subtitle with key info */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        marginTop: '0.5rem',
+                        fontSize: '0.875rem',
+                        color: '#71717a'
+                    }}>
+                        <span>{request.category}</span>
+                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#d4d4d8' }} />
+                        <span>{(() => {
+                            const currency = request.certificate?.currency || 'DH';
+                            return `${totalAmount.toFixed(2)} ${currency}`;
+                        })()}</span>
+                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#d4d4d8' }} />
+                        <span suppressHydrationWarning>
+                            {new Date(request.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
                     </div>
                 </div>
+            </div>
+            
+            {/* Action Buttons Bar - Separate from header for better mobile UX */}
+            <div style={{
+                display: 'flex',
+                gap: '0.75rem',
+                marginBottom: '1.5rem',
+                padding: '0 0.5rem',
+                flexWrap: 'wrap'
+            }}>
+                {/* Staff Actions */}
+                {isStaff && status !== 'PAID' && status !== 'DECLINED' && (
+                    <>
+                        {/* ESTIMATED status: Show Approve/Decline buttons */}
+                        {status === 'ESTIMATED' && (
+                            <>
+                                <button
+                                    onClick={handleDeclineEstimate}
+                                    disabled={isPending}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.75rem 1rem',
+                                        borderRadius: '0.75rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        backgroundColor: 'white',
+                                        border: '1px solid #fecaca',
+                                        color: isPending ? '#a1a1aa' : '#dc2626',
+                                        cursor: isPending ? 'not-allowed' : 'pointer',
+                                        transition: 'all 150ms',
+                                        flex: '0 0 auto',
+                                        minHeight: '2.75rem',
+                                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = '#fef2f2'
+                                            e.currentTarget.style.borderColor = '#fca5a5'
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = 'white'
+                                            e.currentTarget.style.borderColor = '#fecaca'
+                                        }
+                                    }}
+                                >
+                                    {isPending ? 
+                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
+                                        <XCircle style={{ width: '1rem', height: '1rem' }} />
+                                    }
+                                    <span>Decline</span>
+                                </button>
+                                <button
+                                    onClick={handleApproveEstimate}
+                                    disabled={isPending}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.75rem 1rem',
+                                        borderRadius: '0.75rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        backgroundColor: isPending ? '#52525b' : '#18181b',
+                                        border: 'none',
+                                        color: 'white',
+                                        cursor: isPending ? 'not-allowed' : 'pointer',
+                                        transition: 'all 150ms',
+                                        flex: '0 0 auto',
+                                        minHeight: '2.75rem',
+                                        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = '#27272a'
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = '#18181b'
+                                        }
+                                    }}
+                                >
+                                    {isPending ? 
+                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
+                                        <CheckCircle2 style={{ width: '1rem', height: '1rem' }} />
+                                    }
+                                    <span>Approve Estimate</span>
+                                </button>
+                            </>
+                        )}
 
-                {/* Download button - right oriented */}
-                {(status === 'PAID' || status === 'REJECTED' || status === 'DECLINED') && (
-                    <div style={{ marginLeft: 'auto' }}>
+                        {/* VERIFIED_READY status: Show receipt action buttons */}
+                        {status === 'VERIFIED_READY' && (
+                            <>
+                                {/* Reject Receipt Button */}
+                                <button
+                                    onClick={handleRejectReceipt}
+                                    disabled={isPending}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.75rem 1rem',
+                                        borderRadius: '0.75rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        backgroundColor: 'white',
+                                        border: '1px solid #fecaca',
+                                        color: isPending ? '#a1a1aa' : '#dc2626',
+                                        cursor: isPending ? 'not-allowed' : 'pointer',
+                                        transition: 'all 150ms',
+                                        flex: '0 0 auto',
+                                        minHeight: '2.75rem',
+                                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = '#fef2f2'
+                                            e.currentTarget.style.borderColor = '#fca5a5'
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = 'white'
+                                            e.currentTarget.style.borderColor = '#fecaca'
+                                        }
+                                    }}
+                                    title="Reject receipt and request re-upload"
+                                >
+                                    {isPending ? 
+                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
+                                        <XCircle style={{ width: '1rem', height: '1rem' }} />
+                                    }
+                                    <span>Reject Receipt</span>
+                                </button>
+                                
+                                {/* Request More Button */}
+                                <button
+                                    onClick={handleRequestMore}
+                                    disabled={isPending}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.75rem 1rem',
+                                        borderRadius: '0.75rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        backgroundColor: 'white',
+                                        border: '1px solid #fbbf24',
+                                        color: isPending ? '#a1a1aa' : '#f59e0b',
+                                        cursor: isPending ? 'not-allowed' : 'pointer',
+                                        transition: 'all 150ms',
+                                        flex: '0 0 auto',
+                                        minHeight: '2.75rem',
+                                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = '#fffbeb'
+                                            e.currentTarget.style.borderColor = '#f59e0b'
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = 'white'
+                                            e.currentTarget.style.borderColor = '#fbbf24'
+                                        }
+                                    }}
+                                    title="Request additional receipts from student"
+                                >
+                                    {isPending ? 
+                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
+                                        <Plus style={{ width: '1rem', height: '1rem' }} />
+                                    }
+                                    <span>Request More</span>
+                                </button>
+                                
+                                {/* Verify & Pay Button */}
+                                <button
+                                    onClick={handleVerifyPay}
+                                    disabled={isPending}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.75rem 1rem',
+                                        borderRadius: '0.75rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        backgroundColor: isPending ? '#52525b' : '#18181b',
+                                        border: 'none',
+                                        color: 'white',
+                                        cursor: isPending ? 'not-allowed' : 'pointer',
+                                        transition: 'all 150ms',
+                                        flex: '0 0 auto',
+                                        minHeight: '2.75rem',
+                                        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = '#27272a'
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isPending) {
+                                            e.currentTarget.style.backgroundColor = '#18181b'
+                                        }
+                                    }}
+                                >
+                                    {isPending ? 
+                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
+                                        <CheckCircle2 style={{ width: '1rem', height: '1rem' }} />
+                                    }
+                                    <span>Verify & Pay</span>
+                                </button>
+                            </>
+                        )}
+                    </>
+                )}
+                
+                {/* Utility Buttons - Right side */}
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                    {/* Delete button - show for non-paid requests */}
+                    {status !== 'PAID' && (
+                        <button
+                            onClick={handleDelete}
+                            title="Delete Request"
+                            style={{
+                                width: '2.75rem',
+                                height: '2.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '0.75rem',
+                                backgroundColor: 'white',
+                                color: '#dc2626',
+                                border: '1px solid #fecaca',
+                                cursor: 'pointer',
+                                transition: 'all 150ms',
+                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#fef2f2'
+                                e.currentTarget.style.borderColor = '#fca5a5'
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'white'
+                                e.currentTarget.style.borderColor = '#fecaca'
+                            }}
+                        >
+                            <Trash2 style={{ width: '1.125rem', height: '1.125rem' }} />
+                        </button>
+                    )}
+
+                    {/* Download button */}
+                    {(status === 'PAID' || status === 'REJECTED' || status === 'DECLINED') && (
                         <button
                             onClick={handleDownloadPDF}
                             title="Download as PDF"
                             style={{
-                                width: '2.5rem',
-                                height: '2.5rem',
+                                width: '2.75rem',
+                                height: '2.75rem',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                borderRadius: '0.375rem',
+                                borderRadius: '0.75rem',
                                 backgroundColor: '#18181b',
                                 color: 'white',
                                 border: 'none',
                                 cursor: 'pointer',
-                                transition: 'all 150ms'
+                                transition: 'all 150ms',
+                                boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.backgroundColor = '#27272a'
@@ -528,8 +880,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                         >
                             <Download style={{ width: '1.125rem', height: '1.125rem' }} />
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
@@ -606,7 +958,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     </h3>
                                     {totalAmount > 0 && (
                                         <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b' }}>
-                                            Total: ${totalAmount.toFixed(2)}
+                                            Total: {totalAmount.toFixed(2)} {request.certificate?.currency || 'DH'}
                                         </div>
                                     )}
                                 </div>
@@ -615,6 +967,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                         receipts={receipts.map((r: Receipt) => ({ ...r, createdAt: new Date(r.createdAt) }))}
                                         isStaff={isStaff}
                                         requestId={request.id}
+                                        currency={request.certificate?.currency || 'DH'}
                                     />
                                 </div>
                             </div>
@@ -641,53 +994,48 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                 </h3>
                             </div>
                             <div style={{ padding: '1.5rem' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '1rem 2rem', fontSize: '0.875rem' }}>
-                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Reference</div>
-                                    <div style={{ fontWeight: 500, color: '#18181b', fontFamily: 'monospace' }}>
-                                        #{request.id.slice(0, 12)}
-                                    </div>
+                                {(() => {
+                                    const currency = request.certificate?.currency || 'DH';
+                                    return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            {/* Row 1: Reference & Category */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+                                                <div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Category</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b' }}>{request.category}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Category</div>
-                                    <div style={{
-                                        fontWeight: 500,
-                                        color: '#18181b',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
-                                    }}>
-                                        <span style={{
-                                            width: '0.5rem',
-                                            height: '0.5rem',
-                                            borderRadius: '50%',
-                                            backgroundColor: '#18181b'
-                                        }} />
-                                        {request.category}
-                                    </div>
+                                            {/* Row 2: Amounts */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+                                                <div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Submitted</div>
+                                                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b' }} suppressHydrationWarning>
+                                                        {new Date(request.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Estimate</div>
-                                    <div style={{ fontWeight: 500, color: '#71717a', fontSize: '0.875rem' }}>
-                                        {request.amount.toFixed(2)} DH
-                                    </div>
-
-                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Total Amount</div>
-                                    <div style={{ fontWeight: 600, color: '#18181b', fontSize: '1.125rem' }}>
-                                        {totalAmount.toFixed(2)} DH
-                                    </div>
-
-                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Submitted</div>
-                                    <div style={{ fontWeight: 500, color: '#18181b' }} suppressHydrationWarning>
-                                        {new Date(request.date).toLocaleDateString('en-US', {
-                                            month: 'long',
-                                            day: 'numeric',
-                                            year: 'numeric',
-                                        })}
-                                    </div>
-
-                                    <div style={{ color: '#71717a', fontWeight: 500 }}>Status</div>
-                                    <div>
-                                        <StatusBadge status={status} />
-                                    </div>
-                                </div>
+                                            {/* Row 3: Date & Status */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+                                                <div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Estimate</div>
+                                                    <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#52525b' }}>
+                                                        {request.amount.toFixed(2)} <span style={{ color: '#a1a1aa' }}>{currency}</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Total Amount</div>
+                                                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#18181b' }}>
+                                                        {totalAmount.toFixed(2)} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#71717a' }}>{currency}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 <div style={{ height: '1px', backgroundColor: '#f4f4f5', margin: '1.5rem 0' }} />
 
@@ -712,207 +1060,13 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             </div>
                         </div>
 
-                        {/* Staff Actions - Buttons only */}
-                        {isStaff && status !== 'PAID' && status !== 'DECLINED' && (
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'flex-end',
-                                gap: '0.5rem',
-                                flexWrap: 'wrap',
-                                marginTop: '0.5rem'
-                            }}>
-                                {/* Reject Receipt Button */}
-                                <button
-                                    onClick={handleRejectReceipt}
-                                    disabled={isPending || status === 'PENDING_RECEIPTS'}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.375rem',
-                                        padding: '0.5rem 0.875rem',
-                                        borderRadius: '0.375rem',
-                                        fontSize: '0.8125rem',
-                                        fontWeight: 500,
-                                        backgroundColor: 'white',
-                                        border: '1px solid #e4e4e7',
-                                        color: (isPending || status === 'PENDING_RECEIPTS') ? '#a1a1aa' : '#71717a',
-                                        cursor: (isPending || status === 'PENDING_RECEIPTS') ? 'not-allowed' : 'pointer',
-                                        opacity: status === 'PENDING_RECEIPTS' ? 0.5 : 1,
-                                        transition: 'all 150ms',
-                                        flex: '0 0 auto'
-                                    }}
-                                    title={status === 'PENDING_RECEIPTS' ? 'Cannot reject while waiting for receipt' : ''}
-                                >
-                                    {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />}
-                                    Reject Receipt
-                                </button>
-
-                                {/* Request More Button */}
-                                {status !== 'PENDING_RECEIPTS' && status !== 'ESTIMATED' && (
-                                    <button
-                                        onClick={handleRequestMore}
-                                        disabled={isPending}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.375rem',
-                                            padding: '0.5rem 0.875rem',
-                                            borderRadius: '0.375rem',
-                                            fontSize: '0.8125rem',
-                                            fontWeight: 500,
-                                            backgroundColor: 'white',
-                                            border: '1px solid #fbbf24',
-                                            color: '#b45309',
-                                            cursor: isPending ? 'not-allowed' : 'pointer',
-                                            transition: 'all 150ms',
-                                            flex: '0 0 auto'
-                                        }}
-                                    >
-                                        {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <Plus style={{ width: '0.875rem', height: '0.875rem' }} />}
-                                        Request More
-                                    </button>
-                                )}
-
-                                {/* Verify & Pay Button */}
-                                <button
-                                    onClick={handleVerifyPay}
-                                    disabled={isPending}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.375rem',
-                                        padding: '0.5rem 0.875rem',
-                                        borderRadius: '0.375rem',
-                                        fontSize: '0.8125rem',
-                                        fontWeight: 500,
-                                        backgroundColor: isPending ? '#52525b' : '#18181b',
-                                        border: 'none',
-                                        color: 'white',
-                                        cursor: isPending ? 'not-allowed' : 'pointer',
-                                        transition: 'all 150ms',
-                                        flex: '0 0 auto'
-                                    }}
-                                >
-                                    {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />}
-                                    Verify & Pay
-                                </button>
-                            </div>
-                        )}
-
                         {/* Audit History - For all users */}
-                        <div
-                            style={{
-                                backgroundColor: 'white',
-                                border: '1px solid #e4e4e7',
-                                borderRadius: '0.75rem',
-                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-                                overflow: 'hidden'
-                            }}
-                        >
-                            <div style={{ padding: '0.5rem 1.5rem' }}>
-                                <AuditHistory
-                                    refundId={request.id}
-                                    isOpen={showHistory}
-                                    onToggle={() => setShowHistory(!showHistory)}
-                                />
-                            </div>
-                        </div>
+                        <AuditHistory
+                            refundId={request.id}
+                            isOpen={showHistory}
+                            onToggle={() => setShowHistory(!showHistory)}
+                        />
                     </div>
-
-                    {/* Sidebar / Timeline - Commented out per user request */}
-                    {/* <div className="lg:col-span-1 mt-6 lg:mt-0">
-                        <div
-                            style={{
-                                backgroundColor: 'white',
-                                border: '1px solid #e4e4e7',
-                                borderRadius: '0.75rem',
-                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-                                overflow: 'hidden',
-                                position: 'sticky',
-                                top: '1.5rem',
-                                marginTop: '1.5rem'
-                            }}
-                        >
-                            <div style={{
-                                padding: '1rem 1.5rem',
-                                borderBottom: '1px solid #f4f4f5',
-                                backgroundColor: '#fafafa'
-                            }}>
-                                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Timeline
-                                </h3>
-                            </div>
-                            <div style={{ padding: '1.5rem' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                                    {timelineSteps.map((step, index) => {
-                                        const Icon = step.icon
-                                        const isLast = index === timelineSteps.length - 1
-
-                                        return (
-                                            <div key={step.id} style={{ display: 'flex', gap: '1rem' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                    <div style={{
-                                                        width: '2rem',
-                                                        height: '2rem',
-                                                        borderRadius: '50%',
-                                                        backgroundColor: step.completed ? '#18181b' : step.current ? '#fbbf24' : '#f4f4f5',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        flexShrink: 0,
-                                                        border: step.current ? '2px solid #fde68a' : 'none',
-                                                        boxShadow: step.current ? '0 0 0 4px #fef3c7' : 'none'
-                                                    }}>
-                                                        {step.completed ? (
-                                                            <CheckCircle2 style={{ width: '1rem', height: '1rem', color: 'white' }} />
-                                                        ) : step.current ? (
-                                                            <CircleDot style={{ width: '1rem', height: '1rem', color: 'white' }} />
-                                                        ) : (
-                                                            <Icon style={{ width: '0.875rem', height: '0.875rem', color: '#a1a1aa' }} />
-                                                        )}
-                                                    </div>
-                                                    {!isLast && (
-                                                        <div style={{
-                                                            width: '2px',
-                                                            flex: 1,
-                                                            minHeight: '2rem',
-                                                            backgroundColor: step.completed ? '#18181b' : '#e4e4e7'
-                                                        }} />
-                                                    )}
-                                                </div>
-                                                <div style={{ paddingBottom: isLast ? 0 : '1.5rem', flex: 1 }}>
-                                                    <div style={{
-                                                        fontSize: '0.875rem',
-                                                        fontWeight: 600,
-                                                        color: step.completed || step.current ? '#18181b' : '#a1a1aa',
-                                                        marginBottom: '0.125rem'
-                                                    }}>
-                                                        {step.label}
-                                                    </div>
-                                                    <div style={{
-                                                        fontSize: '0.75rem',
-                                                        color: step.completed || step.current ? '#71717a' : '#d4d4d8',
-                                                        lineHeight: 1.4
-                                                    }}>
-                                                        {step.description}
-                                                    </div>
-                                                    {step.date && (
-                                                        <div style={{
-                                                            fontSize: '0.6875rem',
-                                                            color: '#a1a1aa',
-                                                            marginTop: '0.375rem'
-                                                        }} suppressHydrationWarning>
-                                                            {new Date(step.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    </div> */}
                 </div>
             </div>
 
@@ -993,6 +1147,93 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                 }}
                             >
                                 Reject Receipt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Decline Estimate Dialog */}
+            {showDeclineDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowDeclineDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
+                            Decline Request
+                        </h3>
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            Please provide a reason for declining this request. The student will be notified.
+                        </p>
+                        <textarea
+                            value={declineReason}
+                            onChange={(e) => setDeclineReason(e.target.value)}
+                            placeholder="Enter reason for declining..."
+                            style={{
+                                width: '100%',
+                                minHeight: '5rem',
+                                padding: '0.75rem',
+                                borderRadius: '0.375rem',
+                                border: '1px solid #e4e4e7',
+                                fontSize: '0.875rem',
+                                resize: 'vertical',
+                                marginBottom: '1rem'
+                            }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowDeclineDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDeclineEstimate}
+                                disabled={isPending}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: 'none',
+                                    backgroundColor: isPending ? '#fca5a5' : '#dc2626',
+                                    color: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: isPending ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem'
+                                }}
+                            >
+                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                Decline Request
                             </button>
                         </div>
                     </div>
@@ -1090,6 +1331,113 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             >
                                 {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />}
                                 Mark as Paid
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowDeleteDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                            <div style={{
+                                width: '2.5rem',
+                                height: '2.5rem',
+                                borderRadius: '50%',
+                                backgroundColor: '#fef2f2',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <Trash2 style={{ width: '1.25rem', height: '1.25rem', color: '#dc2626' }} />
+                            </div>
+                            <div>
+                                <h3 style={{ fontWeight: 600, color: '#18181b', margin: 0, marginBottom: '0.25rem' }}>
+                                    Delete Request
+                                </h3>
+                                <p style={{ color: '#71717a', fontSize: '0.875rem', margin: 0 }}>
+                                    This action cannot be undone
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div style={{ 
+                            padding: '1rem',
+                            backgroundColor: '#fafafa',
+                            borderRadius: '0.5rem',
+                            marginBottom: '1.5rem',
+                            border: '1px solid #f4f4f5'
+                        }}>
+                            <p style={{ fontSize: '0.875rem', color: '#52525b', margin: 0, marginBottom: '0.5rem' }}>
+                                <strong>{request.title}</strong>
+                            </p>
+                            <p style={{ fontSize: '0.75rem', color: '#71717a', margin: 0 }}>
+                                Amount: {request.amount.toFixed(2)} {request.certificate?.currency || 'DH'}
+                            </p>
+                        </div>
+
+                        <p style={{ color: '#dc2626', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                            Are you sure you want to delete this refund request? This will permanently remove all associated data including receipts and history.
+                        </p>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowDeleteDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                disabled={isPending}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: 'none',
+                                    backgroundColor: isPending ? '#fca5a5' : '#dc2626',
+                                    color: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: isPending ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem'
+                                }}
+                            >
+                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <Trash2 style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                Delete Request
                             </button>
                         </div>
                     </div>

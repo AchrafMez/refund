@@ -171,6 +171,87 @@ export async function restoreCertificate(id: string) {
     }
 }
 
+export async function checkCertificateUsage(id: string) {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session) {
+        throw new Error("Unauthorized");
+    }
+
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    if (!currentUser || (currentUser.role !== 'STAFF')) {
+        throw new Error("Unauthorized");
+    }
+
+    // Count how many refund requests use this certificate
+    const usageCount = await prisma.refundRequest.count({
+        where: { certificateId: id }
+    })
+
+    // Get some example requests that use this certificate
+    const sampleRequests = await prisma.refundRequest.findMany({
+        where: { certificateId: id },
+        select: {
+            id: true,
+            title: true,
+            status: true,
+            createdAt: true,
+            user: {
+                select: {
+                    name: true,
+                    email: true
+                }
+            }
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' }
+    })
+
+    return {
+        count: usageCount,
+        sampleRequests
+    }
+}
+
+export async function forceDeleteCertificate(id: string) {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session) {
+        throw new Error("Unauthorized");
+    }
+
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    if (!currentUser || (currentUser.role !== 'STAFF')) {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        // First deactivate the certificate
+        await prisma.certificateCatalog.update({
+            where: { id },
+            data: { active: false }
+        });
+
+        revalidatePath('/', 'layout')
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete certificate:", error);
+        throw new Error("Failed to delete certificate.");
+    }
+}
+
 export async function createEstimate(data: {
     title: string;
     description: string;
@@ -746,4 +827,90 @@ export async function getReceiptsForRequest(requestId: string) {
         orderBy: { createdAt: 'asc' }
     })
     return receipts
+}
+
+// Delete a refund request
+export async function deleteRefundRequest(requestId: string) {
+    const session = await auth.api.getSession({
+        headers: await headers()
+    })
+
+    if (!session) {
+        throw new Error("Unauthorized")
+    }
+
+    // Get the request to check permissions
+    const request = await prisma.refundRequest.findUnique({
+        where: { id: requestId },
+        include: { user: true }
+    })
+
+    if (!request) {
+        throw new Error("Request not found")
+    }
+
+    // Check permissions - owner or staff can delete
+    const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+    })
+
+    const isStaff = currentUser?.role === 'STAFF'
+    const isOwner = request.userId === session.user.id
+
+    if (!isStaff && !isOwner) {
+        throw new Error("Unauthorized")
+    }
+
+    // Don't allow deletion of PAID requests
+    if (request.status === 'PAID') {
+        throw new Error("Cannot delete paid requests")
+    }
+
+    try {
+        // Delete related receipts first (cascade should handle this, but being explicit)
+        await prisma.receipt.deleteMany({
+            where: { refundRequestId: requestId }
+        })
+
+        // Delete audit logs
+        await prisma.auditLog.deleteMany({
+            where: { entityId: requestId }
+        })
+
+        // Delete notifications related to this request
+        await prisma.notification.deleteMany({
+            where: { 
+                OR: [
+                    { title: { contains: request.title } },
+                    { message: { contains: requestId } }
+                ]
+            }
+        })
+
+        // Delete the request
+        await prisma.refundRequest.delete({
+            where: { id: requestId }
+        })
+
+        // Log the deletion
+        await logActivity(
+            session.user.id, 
+            session.user.name || session.user.email || "Unknown", 
+            AuditAction.UPDATE, // Using UPDATE as closest action type
+            requestId, 
+            { 
+                action: "DELETE",
+                requestTitle: request.title,
+                requestAmount: request.amountEst 
+            }
+        )
+
+        revalidatePath('/', 'layout')
+        return { success: true }
+
+    } catch (error) {
+        console.error("Failed to delete refund request:", error)
+        throw new Error("Failed to delete request")
+    }
 }

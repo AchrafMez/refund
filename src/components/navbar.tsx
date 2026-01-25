@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { PlusCircle, Menu, X, LogOut, Info, FileText, Upload, CheckCircle2, ArrowRight } from "lucide-react"
+import { PlusCircle, Menu, X, LogOut, Info, FileText, Upload, CheckCircle2, ArrowRight, Award } from "lucide-react"
 import { useSession, signOut } from "@/lib/auth-client"
 import { NotificationBell } from "@/components/notification-bell"
 import { getUserRole } from "@/actions/user"
@@ -330,7 +330,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.625rem',
-                        padding: '0.5rem',
+                        padding: '0.625rem 0.5rem',
                         borderRadius: '0.375rem',
                         cursor: 'pointer',
                         color: '#3f3f46',
@@ -343,7 +343,28 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                       <span>About</span>
                     </DropdownMenuItem>
 
-                    <DropdownMenuSeparator style={{ backgroundColor: '#f4f4f5', margin: '0.25rem 0' }} />
+                    {userRole === 'STAFF' && (
+                      <DropdownMenuItem
+                        onClick={() => router.push('/staff/certificates')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.625rem',
+                          padding: '0.625rem 0.5rem',
+                          borderRadius: '0.375rem',
+                          cursor: 'pointer',
+                          color: '#3f3f46',
+                          fontSize: '0.875rem',
+                          transition: 'all 150ms'
+                        }}
+                        className="group hover:bg-zinc-50 hover:text-zinc-900"
+                      >
+                        <Award style={{ width: '1rem', height: '1rem', color: '#a1a1aa' }} />
+                        <span>Manage Certs</span>
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuSeparator style={{ backgroundColor: '#f4f4f5', margin: '0.375rem 0' }} />
 
                     <DropdownMenuItem
                       onClick={handleSignOut}
@@ -351,7 +372,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.625rem',
-                        padding: '0.5rem',
+                        padding: '0.625rem 0.5rem',
                         borderRadius: '0.375rem',
                         cursor: 'pointer',
                         color: '#ef4444',
@@ -506,8 +527,31 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                 </div>
               </div>
 
-              {/* Right: Icon Buttons (About + Logout) */}
+              {/* Right: Icon Buttons (Certs + About + Logout) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                {userRole === 'STAFF' && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      router.push('/staff/certificates')
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '2.5rem',
+                      height: '2.5rem',
+                      backgroundColor: 'white',
+                      border: '1px solid #e4e4e7',
+                      borderRadius: '0.375rem',
+                      color: '#71717a',
+                      cursor: 'pointer'
+                    }}
+                    title="Manage Certificates"
+                  >
+                    <Award style={{ width: '1.125rem', height: '1.125rem' }} />
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false)

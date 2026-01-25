@@ -43,13 +43,14 @@ export default async function StaffRequestDetailsPage({ params }: { params: Prom
     title: request.title,
     date: request.createdAt.toISOString(),
     status: request.status,
-    category: request.type.charAt(0).toUpperCase() + request.type.slice(1).toLowerCase(),
+    category: request.type,
     description: request.description,
     amount: request.amountEst,
     totalAmount: request.totalAmount,
     receiptUrl: serializedReceipts[0]?.url || null,
     receipts: serializedReceipts,
-    user: request.user
+    user: request.user,
+    certificate: request.certificate
   }
 
   return <RequestDetailsView request={serializedRequest} isStaff={true} />
