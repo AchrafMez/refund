@@ -50,7 +50,7 @@ export default function AnalyticsPage() {
   const requestTypes = [
     { value: 'TRAVEL', label: 'Transport & Travel' },
     { value: 'EQUIPMENT', label: 'Hardware & Equipment' },
-    { value: 'CERTIFICATION', label: 'Training & Certs' },
+    { value: 'CERTIFICATION', label: 'Certification' },
     { value: 'OTHER', label: 'Other Expenses' }
   ]
 
@@ -321,43 +321,13 @@ export default function AnalyticsPage() {
 
       {/* Header */}
       <div className="analytics-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link
-            href="/staff"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '2.5rem',
-              height: '2.5rem',
-              borderRadius: '50%',
-              backgroundColor: 'transparent',
-              color: '#71717a',
-              border: '1px solid #e4e4e7',
-              transition: 'all 200ms ease',
-              flexShrink: 0
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#18181b'
-              e.currentTarget.style.color = 'white'
-              e.currentTarget.style.borderColor = '#18181b'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-              e.currentTarget.style.color = '#71717a'
-              e.currentTarget.style.borderColor = '#e4e4e7'
-            }}
-          >
-            <ChevronLeft style={{ width: '1.25rem', height: '1.25rem' }} />
-          </Link>
-          <div>
-            <h1 style={{ fontSize: '1.875rem', fontWeight: 600, color: '#18181b', letterSpacing: '-0.025em' }}>
-              Analytics
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#71717a', marginTop: '0.25rem' }}>
-              Overview of refund requests and financial metrics.
-            </p>
-          </div>
+        <div>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 600, color: '#18181b', letterSpacing: '-0.025em' }}>
+            Analytics
+          </h1>
+          <p style={{ fontSize: '0.875rem', color: '#71717a', marginTop: '0.125rem' }}>
+            Overview of refund requests and financial metrics
+          </p>
         </div>
 
         {/* Actions */}

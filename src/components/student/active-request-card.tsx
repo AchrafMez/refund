@@ -10,6 +10,8 @@ interface ActiveRequestCardProps {
   amount: number
   date: string
   status: RequestStatus
+  receiptsCount?: number
+  currency?: string
 }
 
 // Status-based progress configuration
@@ -22,8 +24,16 @@ const statusConfig: Record<RequestStatus, { progress: number; message: string }>
   REJECTED: { progress: 0, message: "Request was rejected." }
 }
 
-export function ActiveRequestCard({ id, title, amount, date, status }: ActiveRequestCardProps) {
-  const config = statusConfig[status]
+export function ActiveRequestCard({ id, title, amount, date, status, receiptsCount = 0, currency = 'DH' }: ActiveRequestCardProps) {
+  // When PENDING_RECEIPTS but has receipts, show as Receipt Submitted
+  const hasReceipts = receiptsCount > 0
+  const effectiveStatus = (status === 'PENDING_RECEIPTS' && hasReceipts) ? 'VERIFIED_READY' : status
+  
+  // Get config based on effective status, but adjust message for PENDING_RECEIPTS with receipts
+  const baseConfig = statusConfig[effectiveStatus]
+  const config = (status === 'PENDING_RECEIPTS' && hasReceipts) 
+    ? { ...baseConfig, progress: 75, message: "Receipt submitted. Awaiting staff review." }
+    : baseConfig
 
   return (
     <div
@@ -77,7 +87,7 @@ export function ActiveRequestCard({ id, title, amount, date, status }: ActiveReq
               </span>
             </div>
           </div>
-          <StatusBadge status={status} />
+          <StatusBadge status={effectiveStatus} />
         </div>
       </div>
 
@@ -88,7 +98,7 @@ export function ActiveRequestCard({ id, title, amount, date, status }: ActiveReq
           <span style={{ fontSize: '1.5rem', fontWeight: 500, color: '#18181b' }}>
             {amount.toFixed(2)}
           </span>
-          <span style={{ fontSize: '0.875rem', color: '#71717a' }}>DH</span>
+          <span style={{ fontSize: '0.875rem', color: '#71717a' }}>{currency}</span>
         </div>
 
         {/* Progress */}

@@ -51,7 +51,7 @@ async function main() {
     }
   }
 
-  console.log("✅ Seeding finished.");
+  console.log("Seeding finished.");
 }
 
 main()

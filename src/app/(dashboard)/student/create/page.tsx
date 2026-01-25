@@ -4,7 +4,7 @@ import { useWizardStore } from "@/store/wizard-store"
 import { StepCategory } from "@/components/student/wizard/step-category"
 import { StepDetails } from "@/components/student/wizard/step-details"
 import { StepSummary } from "@/components/student/wizard/step-summary"
-import { ChevronLeft, FolderOpen, FileText, CheckCircle, AlertCircle, Info, Shield } from "lucide-react"
+import { ChevronLeft, FolderOpen, FileText, CheckCircle, AlertCircle, Info, Shield, Check, ArrowRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { authClient } from "@/lib/auth-client"
@@ -59,17 +59,17 @@ export default function CreateRequestPage() {
             to { opacity: 1; }
           }
           @keyframes slideUp {
-            from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+            from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
             to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
           }
           .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             z-index: 50;
-            animation: fadeIn 0.2s ease-out;
+            animation: fadeIn 0.15s ease-out;
           }
           .modal-container {
             position: fixed;
@@ -78,181 +78,151 @@ export default function CreateRequestPage() {
             transform: translate(-50%, -50%);
             z-index: 51;
             width: 100%;
-            max-width: 28rem;
+            max-width: 24rem;
             padding: 0 1rem;
-            animation: slideUp 0.3s ease-out;
+            animation: slideUp 0.2s ease-out;
           }
           .modal-content {
             background: white;
-            border-radius: 1rem;
+            border-radius: 0.75rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             overflow: hidden;
-          }
-          .modal-header {
-            padding: 1.5rem 1.5rem 1rem;
-            border-bottom: 1px solid #f4f4f5;
-          }
-          .modal-title {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #18181b;
-            margin: 0;
-          }
-          .modal-icon {
-            width: 2.5rem;
-            height: 2.5rem;
-            border-radius: 0.75rem;
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-          }
-          .modal-icon svg {
-            width: 1.25rem;
-            height: 1.25rem;
-            color: #d97706;
-          }
-          .modal-body {
-            padding: 1.25rem 1.5rem;
-          }
-          .modal-intro {
-            font-size: 0.875rem;
-            color: #71717a;
-            margin-bottom: 1rem;
-          }
-          .modal-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-          }
-          .modal-list-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-            font-size: 0.875rem;
-            color: #3f3f46;
-            line-height: 1.5;
-          }
-          .modal-list-bullet {
-            width: 1.25rem;
-            height: 1.25rem;
-            border-radius: 50%;
-            background: #f4f4f5;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            margin-top: 0.125rem;
-          }
-          .modal-list-bullet svg {
-            width: 0.75rem;
-            height: 0.75rem;
-            color: #71717a;
-          }
-          .modal-highlight {
-            font-weight: 600;
-            color: #18181b;
-          }
-          .modal-cap {
-            display: inline-flex;
-            padding: 0.125rem 0.5rem;
-            background: #fee2e2;
-            color: #dc2626;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-left: 0.25rem;
-          }
-          .modal-footer {
-            padding: 1rem 1.5rem 1.5rem;
-            display: flex;
-            justify-content: flex-end;
-          }
-          .modal-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            background: #18181b;
-            color: white;
-            border: none;
-            border-radius: 0.625rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 150ms ease;
-          }
-          .modal-button:hover {
-            background: #27272a;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          }
-          .modal-button:active {
-            transform: translateY(0);
-          }
-          .modal-button svg {
-            width: 1rem;
-            height: 1rem;
+            border: 1px solid #e4e4e7;
           }
         `}</style>
 
         <div className="modal-overlay" />
         <div className="modal-container">
           <div className="modal-content">
-            <div className="modal-header">
-              <h2 className="modal-title">
-                <div className="modal-icon">
-                  <Info />
+            {/* Header */}
+            <div style={{ padding: '1.5rem 1.5rem 0' }}>
+              <h2 style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                fontSize: '1.125rem',
+                fontWeight: 600,
+                color: '#18181b',
+                margin: 0
+              }}>
+                <div style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: '0.625rem',
+                  backgroundColor: '#f4f4f5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Info style={{ width: '1.25rem', height: '1.25rem', color: '#18181b' }} />
                 </div>
                 Important Information
               </h2>
             </div>
 
-            <div className="modal-body">
-              <p className="modal-intro">Before you proceed, please note:</p>
-              <ul className="modal-list">
-                <li className="modal-list-item">
-                  <span className="modal-list-bullet">
-                    <CheckCircle />
-                  </span>
-                  <span>
-                    <span className="modal-highlight">Certifications refund will match your receipt</span>,
-                    up to a maximum of <span className="modal-cap">300$</span>
-                  </span>
-                </li>
-                <li className="modal-list-item">
-                  <span className="modal-list-bullet">
-                    <CheckCircle />
-                  </span>
-                  <span>
-                    Refunds are based on <span className="modal-highlight">what you PAID</span>, not estimates.
-                  </span>
-                </li>
-                <li className="modal-list-item">
-                  <span className="modal-list-bullet">
-                    <CheckCircle />
-                  </span>
-                  <span>
-                    Ensure all invoices (Marjan, HyperU, etc.) are addressed to <span className="modal-highlight">LEET INITIATIVE</span>.
-                  </span>
-                </li>
-              </ul>
+            {/* Content */}
+            <div style={{ padding: '1.25rem 1.5rem' }}>
+              <p style={{ 
+                fontSize: '0.8125rem', 
+                color: '#71717a', 
+                marginBottom: '1rem' 
+              }}>
+                Before you proceed, please note:
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Item 1 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
+                  <div style={{
+                    width: '1.25rem',
+                    height: '1.25rem',
+                    borderRadius: '50%',
+                    backgroundColor: '#18181b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '0.0625rem'
+                  }}>
+                    <Check style={{ width: '0.625rem', height: '0.625rem', color: 'white' }} strokeWidth={2.5} />
+                  </div>
+                  <p style={{ fontSize: '0.8125rem', color: '#3f3f46', margin: 0, lineHeight: 1.5 }}>
+                    <span style={{ fontWeight: 600, color: '#18181b' }}>Certifications refund will match your receipt</span>, up to a maximum of <span style={{ fontWeight: 600, color: '#18181b' }}>300$</span>
+                  </p>
+                </div>
+
+                {/* Item 2 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
+                  <div style={{
+                    width: '1.25rem',
+                    height: '1.25rem',
+                    borderRadius: '50%',
+                    backgroundColor: '#18181b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '0.0625rem'
+                  }}>
+                    <Check style={{ width: '0.625rem', height: '0.625rem', color: 'white' }} strokeWidth={2.5} />
+                  </div>
+                  <p style={{ fontSize: '0.8125rem', color: '#3f3f46', margin: 0, lineHeight: 1.5 }}>
+                    Refunds are based on <span style={{ fontWeight: 600, color: '#18181b' }}>what you PAID</span>, not estimates.
+                  </p>
+                </div>
+
+                {/* Item 3 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
+                  <div style={{
+                    width: '1.25rem',
+                    height: '1.25rem',
+                    borderRadius: '50%',
+                    backgroundColor: '#18181b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '0.0625rem'
+                  }}>
+                    <Check style={{ width: '0.625rem', height: '0.625rem', color: 'white' }} strokeWidth={2.5} />
+                  </div>
+                  <p style={{ fontSize: '0.8125rem', color: '#3f3f46', margin: 0, lineHeight: 1.5 }}>
+                    Ensure all invoices (Marjan, HyperU, etc.) are addressed to <span style={{ fontWeight: 600, color: '#18181b' }}>LEET INITIATIVE</span>.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="modal-footer">
+            {/* Footer */}
+            <div style={{
+              padding: '1rem 1.5rem',
+              borderTop: '1px solid #f4f4f5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}></span>
               <button
-                className="modal-button"
                 onClick={() => setShowDisclaimer(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  padding: '0.5rem 0.875rem',
+                  backgroundColor: '#18181b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.8125rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'background-color 150ms'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#27272a'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#18181b'}
               >
-                I Understand, Proceed
-                <ChevronLeft style={{ transform: 'rotate(180deg)' }} />
+                Get started
+                <ArrowRight style={{ width: '0.75rem', height: '0.75rem' }} strokeWidth={2} />
               </button>
             </div>
           </div>
@@ -283,7 +253,7 @@ export default function CreateRequestPage() {
         }
         
         .wizard-title {
-          font-size: 1.875rem;
+          font-size: 1.5rem;
           font-weight: 600;
           color: #18181b;
           letter-spacing: -0.025em;
@@ -293,28 +263,26 @@ export default function CreateRequestPage() {
         .wizard-subtitle {
           font-size: 0.875rem;
           color: #71717a;
-          margin-top: 0.375rem;
-          margin-left: 2.75rem;
+          margin-top: 0.25rem;
         }
         
         .steps-container {
-          margin-bottom: 2rem;
-          padding: 0 0.5rem;
+          margin-bottom: 1.5rem;
+          padding: 0;
         }
         
         .steps-inner {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          max-width: 32rem;
-          margin: 0 auto;
+          justify-content: center;
+          width: 100%;
         }
         
         .step-item {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.375rem;
           flex-shrink: 0;
         }
         
@@ -339,11 +307,6 @@ export default function CreateRequestPage() {
           
           .wizard-title {
             font-size: 1.5rem;
-          }
-          
-          .wizard-subtitle {
-            margin-left: 0;
-            margin-top: 0.75rem;
           }
 
           .wizard-header-top {
@@ -399,40 +362,9 @@ export default function CreateRequestPage() {
 
       {/* Header */}
       <div className="wizard-header">
-        <div className="wizard-header-top">
-          <button
-            onClick={handleBack}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '2.5rem',
-              height: '2.5rem',
-              borderRadius: '50%',
-              backgroundColor: 'transparent',
-              border: '1px solid #e4e4e7',
-              color: '#71717a',
-              cursor: 'pointer',
-              transition: 'all 150ms',
-              flexShrink: 0
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#18181b'
-              e.currentTarget.style.color = 'white'
-              e.currentTarget.style.borderColor = '#18181b'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-              e.currentTarget.style.color = '#71717a'
-              e.currentTarget.style.borderColor = '#e4e4e7'
-            }}
-          >
-            <ChevronLeft style={{ width: '1.25rem', height: '1.25rem' }} />
-          </button>
-          <h1 className="wizard-title">
-            New Refund Request
-          </h1>
-        </div>
+        <h1 className="wizard-title">
+          New Refund Request
+        </h1>
         <p className="wizard-subtitle">
           Follow the steps to submit your expense.
         </p>
@@ -449,7 +381,7 @@ export default function CreateRequestPage() {
             return (
               <div key={s.id} style={{ display: 'flex', alignItems: 'flex-start', flex: index < steps.length - 1 ? 1 : 'none' }}>
                 {/* Step Item */}
-                <div className="step-item">
+                <div className="step-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem' }}>
                   <div
                     style={{
                       display: 'flex',
@@ -489,7 +421,7 @@ export default function CreateRequestPage() {
                     style={{
                       flex: 1,
                       height: '2px',
-                      margin: '0 0.5rem',
+                      margin: '0 0.75rem',
                       marginTop: 'calc(2.25rem / 2 - 1px)',
                       backgroundColor: '#e4e4e7',
                       borderRadius: '1px',

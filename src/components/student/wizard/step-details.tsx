@@ -1,9 +1,35 @@
 import { useWizardStore } from "@/store/wizard-store"
-import React, { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Calendar, Settings } from "lucide-react"
+import React, { useState, useEffect, useRef } from "react"
+import { ChevronLeft, ChevronRight, Calendar, Settings, ChevronDown, Check } from "lucide-react"
 import { getCertificates } from "@/actions/refunds"
 import { authClient } from "@/lib/auth-client"
 import { CustomCalendar } from "@/components/ui/custom-calendar"
+const getTitlePlaceholder = (category: string): string => {
+  switch (category) {
+    case 'transport':
+      return "e.g., Akasec Odyssey, Exhibition Event..."
+    case 'equipment':
+      return "e.g., Arduino, Raspberry, Slokaa..."
+    case 'other':
+      return "e.g., Food, PingPong Balls..."
+    default:
+      return "Enter a title for your request..."
+  }
+}
+const getDescriptionPlaceholder = (category: string): string => {
+  switch (category) {
+    case 'transport':
+      return "Describe your travel purpose, event name, dates, and why this trip is necessary for your studies..."
+    case 'equipment':
+      return "Describe the hardware/equipment needed, its purpose for your project, and why it's essential for your work..."
+    case 'certification':
+      return "Describe the certification relevance to your learning path, how it benefits your career..."
+    case 'other':
+      return "Describe the expense purpose..."
+    default:
+      return "Describe the context and purpose of this expense..."
+  }
+}
 
 type Certificate = {
   id: string
@@ -23,6 +49,19 @@ export function StepDetails() {
 
   // Modal State
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showCertDropdown, setShowCertDropdown] = useState(false)
+  const certDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (certDropdownRef.current && !certDropdownRef.current.contains(event.target as Node)) {
+        setShowCertDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Check Staff Role
   useEffect(() => {
@@ -47,9 +86,11 @@ export function StepDetails() {
     if (data.category === 'certification' && data.certificateId) {
       const cert = certificates.find(c => c.id === data.certificateId)
       if (cert) {
+        // Cap the refund amount at 300
+        const refundAmount = Math.min(cert.fixedCost, 300)
         setData({ 
           title: cert.name,
-          amount: cert.fixedCost.toString()
+          amount: refundAmount.toString()
         })
       }
     }
@@ -162,7 +203,7 @@ export function StepDetails() {
               <input
                 id="title"
                 type="text"
-                placeholder="e.g., Conference Registration, equipment purchase..."
+                placeholder={getTitlePlaceholder(data.category)}
                 value={data.title}
                 onChange={(e) => setData({ title: e.target.value })}
                 style={errors.title ? errorInputStyle : inputStyle}
@@ -178,24 +219,123 @@ export function StepDetails() {
           {data.category === 'certification' && (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label htmlFor="certificate" style={labelStyle}>
+                <label style={labelStyle}>
                   Select Certificate
                 </label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <select
-                    id="certificate"
-                    value={data.certificateId || ''}
-                    onChange={(e) => setData({ certificateId: e.target.value || null })}
-                    style={{ ...(errors.certificateId ? errorInputStyle : inputStyle), flex: 1 }}
-                    disabled={loading}
-                  >
-                    <option value="">-- Select a Certificate --</option>
-                    {certificates.filter(c => c.active !== false).map((cert) => (
-                      <option key={cert.id} value={cert.id}>
-                        {cert.name} ({cert.provider}) - ${cert.fixedCost}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Custom Dropdown */}
+                  <div ref={certDropdownRef} style={{ position: 'relative', flex: 1 }}>
+                    <button
+                      type="button"
+                      onClick={() => !loading && setShowCertDropdown(!showCertDropdown)}
+                      style={{ 
+                        ...(errors.certificateId ? errorInputStyle : inputStyle), 
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading ? 0.6 : 1
+                      }}
+                    >
+                      <span style={{ 
+                        color: data.certificateId ? '#18181b' : '#9ca3af',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {data.certificateId 
+                          ? (() => {
+                              const cert = certificates.find(c => c.id === data.certificateId)
+                              return cert ? `${cert.name} (${cert.provider}) - ${cert.fixedCost} ${cert.currency}` : 'Select a certificate'
+                            })()
+                          : 'Select a certificate'
+                        }
+                      </span>
+                      <ChevronDown 
+                        size={16} 
+                        style={{ 
+                          color: '#71717a', 
+                          flexShrink: 0,
+                          transform: showCertDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 150ms'
+                        }} 
+                      />
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    {showCertDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 0.25rem)',
+                        left: 0,
+                        right: 0,
+                        backgroundColor: 'white',
+                        border: '1px solid #e4e4e7',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                        zIndex: 50,
+                        maxHeight: '15rem',
+                        overflowY: 'auto'
+                      }}>
+                        {/* Empty option */}
+                        <div
+                          onClick={() => {
+                            setData({ certificateId: null })
+                            setShowCertDropdown(false)
+                          }}
+                          style={{
+                            padding: '0.625rem 0.875rem',
+                            fontSize: '0.875rem',
+                            color: '#71717a',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid #f4f4f5',
+                            transition: 'background-color 150ms'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fafafa'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                        >
+                          -- Select a Certificate --
+                        </div>
+                        
+                        {certificates.filter(c => c.active !== false).map((cert) => {
+                          const isSelected = data.certificateId === cert.id
+                          return (
+                            <div
+                              key={cert.id}
+                              onClick={() => {
+                                setData({ certificateId: cert.id })
+                                setShowCertDropdown(false)
+                              }}
+                              style={{
+                                padding: '0.625rem 0.875rem',
+                                fontSize: '0.875rem',
+                                color: '#18181b',
+                                cursor: 'pointer',
+                                backgroundColor: isSelected ? '#f4f4f5' : 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '0.5rem',
+                                transition: 'background-color 150ms'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected) e.currentTarget.style.backgroundColor = '#fafafa'
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSelected) e.currentTarget.style.backgroundColor = 'white'
+                              }}
+                            >
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {cert.name} ({cert.provider}) - {cert.fixedCost} {cert.currency}
+                              </span>
+                              {isSelected && <Check size={16} style={{ color: '#18181b', flexShrink: 0 }} />}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                   {isStaff && (
                     <a
                       href="/staff/certificates"
@@ -227,14 +367,36 @@ export function StepDetails() {
 
               {selectedCert && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{
-                    padding: '0.75rem',
-                    backgroundColor: '#f4f4f5',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}>
-                    <strong>Estimated Refund:</strong> ${selectedCert.fixedCost} {selectedCert.currency}
-                  </div>
+                  {/* Estimated Refund - Green if fully covered, Red if over 300 */}
+                  {selectedCert.fixedCost <= 300 ? (
+                    <div style={{
+                      padding: '0.75rem',
+                      backgroundColor: '#dcfce7',
+                      border: '1px solid #86efac',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem',
+                      color: '#166534'
+                    }}>
+                      <strong>Refund:</strong> {selectedCert.fixedCost} {selectedCert.currency}
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.8125rem', color: '#15803d' }}>
+                        ✓ Fully covered
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '0.75rem',
+                      backgroundColor: '#fef2f2',
+                      border: '1px solid #fca5a5',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem',
+                      color: '#991b1b'
+                    }}>
+                      <strong>Refund:</strong> 300 {selectedCert.currency}
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.8125rem' }}>
+                        — You pay <strong>{selectedCert.fixedCost - 300} {selectedCert.currency}</strong> yourself
+                      </span>
+                    </div>
+                  )}
                   <div style={{
                     display: 'flex',
                     alignItems: 'flex-start',
@@ -309,7 +471,7 @@ export function StepDetails() {
                   <input
                     id="departure"
                     type="text"
-                    placeholder="e.g., Ben Guerir"
+                    placeholder="e.g., Tetouan"
                     value={data.departure}
                     onChange={(e) => setData({ departure: e.target.value })}
                     style={errors.departure ? errorInputStyle : inputStyle}
@@ -323,7 +485,7 @@ export function StepDetails() {
                   <input
                     id="destination"
                     type="text"
-                    placeholder="e.g., Casablanca (CTM station)"
+                    placeholder="e.g., KHouribga Larb3a"
                     value={data.destination}
                     onChange={(e) => setData({ destination: e.target.value })}
                     style={errors.destination ? errorInputStyle : inputStyle}
@@ -420,7 +582,7 @@ export function StepDetails() {
             </label>
             <textarea
               id="description"
-              placeholder="Describe the event duration, context, and purpose of this expense..."
+              placeholder={getDescriptionPlaceholder(data.category)}
               value={data.description}
               onChange={(e) => setData({ description: e.target.value.slice(0, 500) })}
               rows={3}

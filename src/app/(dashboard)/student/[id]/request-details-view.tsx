@@ -110,10 +110,14 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     const [isPending, startTransition] = useTransition()
     const [showRejectDialog, setShowRejectDialog] = useState(false)
     const [showApproveDialog, setShowApproveDialog] = useState(false)
+    const [showApproveEstimateDialog, setShowApproveEstimateDialog] = useState(false)
     const [showDeclineDialog, setShowDeclineDialog] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [showRequestMoreDialog, setShowRequestMoreDialog] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
     const [declineReason, setDeclineReason] = useState("")
+    const [requestMoreReason, setRequestMoreReason] = useState("")
+    const [deleteReason, setDeleteReason] = useState("")
     const [finalAmount, setFinalAmount] = useState("")
 
     // Use Query for real-time data
@@ -147,7 +151,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
 
     const status = request.status as RequestStatus
     const receipts = request.receipts || []
-    const totalAmount = request.totalAmount || receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
+    // Receipt total in DH (staff-entered amounts) - starts at 0 until staff sets amounts
+    const receiptTotalDH = receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
     const isReceiptType = receipts.length > 0 || status === 'VERIFIED_READY' || status === 'PENDING_RECEIPTS'
 
     const handleUploadComplete = () => {
@@ -174,7 +179,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     }
 
     const handleVerifyPay = () => {
-        setFinalAmount(totalAmount.toString())
+        setFinalAmount(receiptTotalDH.toString())
         setShowApproveDialog(true)
     }
 
@@ -196,7 +201,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     const confirmDelete = () => {
         startTransition(async () => {
             try {
-                await deleteRefundRequest(request.id)
+                await deleteRefundRequest(request.id, deleteReason.trim() || undefined)
                 router.push(isStaff ? '/staff' : '/student')
             } catch (error) {
                 console.error('Delete failed:', error)
@@ -204,25 +209,38 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
             }
         })
         setShowDeleteDialog(false)
+        setDeleteReason("")
     }
 
     const handleRequestMore = () => {
+        setShowRequestMoreDialog(true)
+    }
+
+    const confirmRequestMore = () => {
         startTransition(async () => {
-            await updateRefundStatus(request.id, "PENDING_RECEIPTS", "Staff requested additional receipt(s)")
+            const reason = requestMoreReason.trim() || "Staff requested additional receipt(s)"
+            await updateRefundStatus(request.id, "PENDING_RECEIPTS", reason)
             queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
             queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
             router.refresh()
         })
+        setShowRequestMoreDialog(false)
+        setRequestMoreReason("")
     }
 
     // Approve estimate - moves to PENDING_RECEIPTS
     const handleApproveEstimate = () => {
+        setShowApproveEstimateDialog(true)
+    }
+
+    const confirmApproveEstimate = () => {
         startTransition(async () => {
             await updateRefundStatus(request.id, "PENDING_RECEIPTS")
             queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
             queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
             router.refresh()
         })
+        setShowApproveEstimateDialog(false)
     }
 
     // Decline estimate - moves to DECLINED
@@ -523,41 +541,12 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                 marginBottom: '2rem', 
                 padding: '0 0.5rem' // Mobile padding
             }}>
-                {/* Back Button */}
-                <Link
-                    href={isStaff ? "/staff" : "/student"}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '2.75rem', // Larger touch target
-                        height: '2.75rem',
-                        borderRadius: '0.75rem', // More rounded like cards
-                        backgroundColor: 'white',
-                        color: '#71717a',
-                        border: '1px solid #e4e4e7',
-                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-                        transition: 'all 150ms',
-                        flexShrink: 0
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f4f4f5'
-                        e.currentTarget.style.borderColor = '#d4d4d8'
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'white'
-                        e.currentTarget.style.borderColor = '#e4e4e7'
-                    }}
-                >
-                    <ChevronLeft style={{ width: '1.25rem', height: '1.25rem' }} />
-                </Link>
-                
                 {/* Title and Status Section */}
-                <div style={{ flex: 1, minWidth: 0, paddingTop: '0.25rem' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <h1 style={{ 
-                            fontSize: '1.5rem', 
-                            fontWeight: 700, 
+                            fontSize: '1.25rem', 
+                            fontWeight: 600, 
                             color: '#18181b', 
                             letterSpacing: '-0.025em',
                             margin: 0,
@@ -583,11 +572,6 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                     }}>
                         <span>{request.category}</span>
                         <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#d4d4d8' }} />
-                        <span>{(() => {
-                            const currency = request.certificate?.currency || 'DH';
-                            return `${totalAmount.toFixed(2)} ${currency}`;
-                        })()}</span>
-                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#d4d4d8' }} />
                         <span suppressHydrationWarning>
                             {new Date(request.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
@@ -598,10 +582,11 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
             {/* Action Buttons Bar - Separate from header for better mobile UX */}
             <div style={{
                 display: 'flex',
-                gap: '0.75rem',
+                gap: '0.5rem',
                 marginBottom: '1.5rem',
                 padding: '0 0.5rem',
-                flexWrap: 'wrap'
+                flexWrap: 'wrap',
+                alignItems: 'center'
             }}>
                 {/* Staff Actions */}
                 {isStaff && status !== 'PAID' && status !== 'DECLINED' && (
@@ -615,38 +600,33 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.75rem 1rem',
-                                        borderRadius: '0.75rem',
-                                        fontSize: '0.875rem',
+                                        gap: '0.375rem',
+                                        padding: '0.5rem 0.875rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.8125rem',
                                         fontWeight: 500,
                                         backgroundColor: 'white',
-                                        border: '1px solid #fecaca',
+                                        border: '1px solid #fca5a5',
                                         color: isPending ? '#a1a1aa' : '#dc2626',
                                         cursor: isPending ? 'not-allowed' : 'pointer',
-                                        transition: 'all 150ms',
-                                        flex: '0 0 auto',
-                                        minHeight: '2.75rem',
-                                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                                        transition: 'all 150ms'
                                     }}
                                     onMouseEnter={(e) => {
                                         if (!isPending) {
                                             e.currentTarget.style.backgroundColor = '#fef2f2'
-                                            e.currentTarget.style.borderColor = '#fca5a5'
                                         }
                                     }}
                                     onMouseLeave={(e) => {
                                         if (!isPending) {
                                             e.currentTarget.style.backgroundColor = 'white'
-                                            e.currentTarget.style.borderColor = '#fecaca'
                                         }
                                     }}
                                 >
                                     {isPending ? 
-                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
-                                        <XCircle style={{ width: '1rem', height: '1rem' }} />
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                        <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
-                                    <span>Decline</span>
+                                    Reject
                                 </button>
                                 <button
                                     onClick={handleApproveEstimate}
@@ -654,19 +634,16 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.75rem 1rem',
-                                        borderRadius: '0.75rem',
-                                        fontSize: '0.875rem',
+                                        gap: '0.375rem',
+                                        padding: '0.5rem 0.875rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.8125rem',
                                         fontWeight: 500,
                                         backgroundColor: isPending ? '#52525b' : '#18181b',
                                         border: 'none',
                                         color: 'white',
                                         cursor: isPending ? 'not-allowed' : 'pointer',
-                                        transition: 'all 150ms',
-                                        flex: '0 0 auto',
-                                        minHeight: '2.75rem',
-                                        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
+                                        transition: 'all 150ms'
                                     }}
                                     onMouseEnter={(e) => {
                                         if (!isPending) {
@@ -680,57 +657,53 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     }}
                                 >
                                     {isPending ? 
-                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
-                                        <CheckCircle2 style={{ width: '1rem', height: '1rem' }} />
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                        <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
-                                    <span>Approve Estimate</span>
+                                    Approve
                                 </button>
                             </>
                         )}
 
-                        {/* VERIFIED_READY status: Show receipt action buttons */}
-                        {status === 'VERIFIED_READY' && (
+                        {/* PENDING_RECEIPTS or VERIFIED_READY status: Show receipt action buttons */}
+                        {(status === 'VERIFIED_READY' || status === 'PENDING_RECEIPTS') && (
                             <>
-                                {/* Reject Receipt Button */}
+                                {/* Reject Receipt Button - disabled when waiting for receipts */}
                                 <button
                                     onClick={handleRejectReceipt}
-                                    disabled={isPending}
+                                    disabled={isPending || status === 'PENDING_RECEIPTS'}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.75rem 1rem',
-                                        borderRadius: '0.75rem',
-                                        fontSize: '0.875rem',
+                                        gap: '0.375rem',
+                                        padding: '0.5rem 0.875rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.8125rem',
                                         fontWeight: 500,
                                         backgroundColor: 'white',
-                                        border: '1px solid #fecaca',
-                                        color: isPending ? '#a1a1aa' : '#dc2626',
-                                        cursor: isPending ? 'not-allowed' : 'pointer',
-                                        transition: 'all 150ms',
-                                        flex: '0 0 auto',
-                                        minHeight: '2.75rem',
-                                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                                        border: '1px solid #fca5a5',
+                                        color: (isPending || status === 'PENDING_RECEIPTS') ? '#a1a1aa' : '#dc2626',
+                                        cursor: (isPending || status === 'PENDING_RECEIPTS') ? 'not-allowed' : 'pointer',
+                                        opacity: status === 'PENDING_RECEIPTS' ? 0.5 : 1,
+                                        transition: 'all 150ms'
                                     }}
                                     onMouseEnter={(e) => {
-                                        if (!isPending) {
+                                        if (!isPending && status !== 'PENDING_RECEIPTS') {
                                             e.currentTarget.style.backgroundColor = '#fef2f2'
-                                            e.currentTarget.style.borderColor = '#fca5a5'
                                         }
                                     }}
                                     onMouseLeave={(e) => {
-                                        if (!isPending) {
+                                        if (!isPending && status !== 'PENDING_RECEIPTS') {
                                             e.currentTarget.style.backgroundColor = 'white'
-                                            e.currentTarget.style.borderColor = '#fecaca'
                                         }
                                     }}
-                                    title="Reject receipt and request re-upload"
+                                    title={status === 'PENDING_RECEIPTS' ? 'Cannot reject while waiting for student to upload receipt' : 'Reject receipt and request re-upload'}
                                 >
                                     {isPending ? 
-                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
-                                        <XCircle style={{ width: '1rem', height: '1rem' }} />
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                        <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
-                                    <span>Reject Receipt</span>
+                                    Reject Receipt
                                 </button>
                                 
                                 {/* Request More Button */}
@@ -740,39 +713,34 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.75rem 1rem',
-                                        borderRadius: '0.75rem',
-                                        fontSize: '0.875rem',
+                                        gap: '0.375rem',
+                                        padding: '0.5rem 0.875rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.8125rem',
                                         fontWeight: 500,
                                         backgroundColor: 'white',
                                         border: '1px solid #fbbf24',
-                                        color: isPending ? '#a1a1aa' : '#f59e0b',
+                                        color: isPending ? '#a1a1aa' : '#b45309',
                                         cursor: isPending ? 'not-allowed' : 'pointer',
-                                        transition: 'all 150ms',
-                                        flex: '0 0 auto',
-                                        minHeight: '2.75rem',
-                                        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                                        transition: 'all 150ms'
                                     }}
                                     onMouseEnter={(e) => {
                                         if (!isPending) {
                                             e.currentTarget.style.backgroundColor = '#fffbeb'
-                                            e.currentTarget.style.borderColor = '#f59e0b'
                                         }
                                     }}
                                     onMouseLeave={(e) => {
                                         if (!isPending) {
                                             e.currentTarget.style.backgroundColor = 'white'
-                                            e.currentTarget.style.borderColor = '#fbbf24'
                                         }
                                     }}
                                     title="Request additional receipts from student"
                                 >
                                     {isPending ? 
-                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
-                                        <Plus style={{ width: '1rem', height: '1rem' }} />
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                        <Plus style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
-                                    <span>Request More</span>
+                                    Request More
                                 </button>
                                 
                                 {/* Verify & Pay Button */}
@@ -782,19 +750,16 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.75rem 1rem',
-                                        borderRadius: '0.75rem',
-                                        fontSize: '0.875rem',
+                                        gap: '0.375rem',
+                                        padding: '0.5rem 0.875rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.8125rem',
                                         fontWeight: 500,
                                         backgroundColor: isPending ? '#52525b' : '#18181b',
                                         border: 'none',
                                         color: 'white',
                                         cursor: isPending ? 'not-allowed' : 'pointer',
-                                        transition: 'all 150ms',
-                                        flex: '0 0 auto',
-                                        minHeight: '2.75rem',
-                                        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
+                                        transition: 'all 150ms'
                                     }}
                                     onMouseEnter={(e) => {
                                         if (!isPending) {
@@ -808,10 +773,10 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     }}
                                 >
                                     {isPending ? 
-                                        <Loader2 style={{ width: '1rem', height: '1rem' }} className="animate-spin" /> : 
-                                        <CheckCircle2 style={{ width: '1rem', height: '1rem' }} />
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                        <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
-                                    <span>Verify & Pay</span>
+                                    Verify & Pay
                                 </button>
                             </>
                         )}
@@ -820,35 +785,32 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                 
                 {/* Utility Buttons - Right side */}
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-                    {/* Delete button - show for non-paid requests */}
-                    {status !== 'PAID' && (
+                    {/* Delete button - show for staff only on non-paid requests */}
+                    {isStaff && status !== 'PAID' && (
                         <button
                             onClick={handleDelete}
                             title="Delete Request"
                             style={{
-                                width: '2.75rem',
-                                height: '2.75rem',
+                                width: '2.25rem',
+                                height: '2.25rem',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                borderRadius: '0.75rem',
+                                borderRadius: '0.375rem',
                                 backgroundColor: 'white',
-                                color: '#dc2626',
-                                border: '1px solid #fecaca',
+                                color: '#71717a',
+                                border: '1px solid #e4e4e7',
                                 cursor: 'pointer',
-                                transition: 'all 150ms',
-                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+                                transition: 'all 150ms'
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#fef2f2'
-                                e.currentTarget.style.borderColor = '#fca5a5'
+                                e.currentTarget.style.backgroundColor = '#fafafa'
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.backgroundColor = 'white'
-                                e.currentTarget.style.borderColor = '#fecaca'
                             }}
                         >
-                            <Trash2 style={{ width: '1.125rem', height: '1.125rem' }} />
+                            <Trash2 style={{ width: '0.875rem', height: '0.875rem' }} />
                         </button>
                     )}
 
@@ -858,18 +820,17 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             onClick={handleDownloadPDF}
                             title="Download as PDF"
                             style={{
-                                width: '2.75rem',
-                                height: '2.75rem',
+                                width: '2.25rem',
+                                height: '2.25rem',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                borderRadius: '0.75rem',
+                                borderRadius: '0.375rem',
                                 backgroundColor: '#18181b',
                                 color: 'white',
                                 border: 'none',
                                 cursor: 'pointer',
-                                transition: 'all 150ms',
-                                boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
+                                transition: 'all 150ms'
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.backgroundColor = '#27272a'
@@ -878,7 +839,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                 e.currentTarget.style.backgroundColor = '#18181b'
                             }}
                         >
-                            <Download style={{ width: '1.125rem', height: '1.125rem' }} />
+                            <Download style={{ width: '0.875rem', height: '0.875rem' }} />
                         </button>
                     )}
                 </div>
@@ -956,9 +917,9 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                         Receipts
                                     </h3>
-                                    {totalAmount > 0 && (
+                                    {receiptTotalDH > 0 && (
                                         <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#18181b' }}>
-                                            Total: {totalAmount.toFixed(2)} {request.certificate?.currency || 'DH'}
+                                            Total: {receiptTotalDH.toFixed(2)} DH
                                         </div>
                                     )}
                                 </div>
@@ -1029,7 +990,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                                 <div>
                                                     <div style={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Total Amount</div>
                                                     <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#18181b' }}>
-                                                        {totalAmount.toFixed(2)} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#71717a' }}>{currency}</span>
+                                                        {receiptTotalDH.toFixed(2)} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#71717a' }}>DH</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1179,20 +1140,20 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
-                            Decline Request
+                            Reject Request
                         </h3>
                         <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                            Please provide a reason for declining this request. The student will be notified.
+                            Please provide a reason for rejecting &quot;{request.title}&quot;
                         </p>
                         <textarea
                             value={declineReason}
                             onChange={(e) => setDeclineReason(e.target.value)}
-                            placeholder="Enter reason for declining..."
+                            placeholder="Enter rejection reason..."
                             style={{
                                 width: '100%',
                                 minHeight: '5rem',
                                 padding: '0.75rem',
-                                borderRadius: '0.375rem',
+                                borderRadius: '0.5rem',
                                 border: '1px solid #e4e4e7',
                                 fontSize: '0.875rem',
                                 resize: 'vertical',
@@ -1217,12 +1178,96 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             </button>
                             <button
                                 onClick={confirmDeclineEstimate}
+                                disabled={!declineReason.trim()}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: 'none',
+                                    backgroundColor: declineReason.trim() ? '#dc2626' : '#fca5a5',
+                                    color: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: declineReason.trim() ? 'pointer' : 'not-allowed'
+                                }}
+                            >
+                                Reject Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Approve Estimate Confirmation Dialog */}
+            {showApproveEstimateDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowApproveEstimateDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
+                            Confirm Approval
+                        </h3>
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            Are you sure you want to approve this estimate? The student will be notified to upload their receipt.
+                        </p>
+
+                        {/* Request Details */}
+                        <div style={{
+                            backgroundColor: '#f4f4f5',
+                            borderRadius: '0.5rem',
+                            padding: '0.75rem',
+                            marginBottom: '1rem'
+                        }}>
+                            <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem' }}>
+                                {request.title}
+                            </p>
+                            <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
+                                {request.user?.name || request.user?.email} • Estimated: {request.amount.toFixed(2)} {request.certificate?.currency || 'Dhs'}
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowApproveEstimateDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmApproveEstimate}
                                 disabled={isPending}
                                 style={{
                                     padding: '0.5rem 1rem',
                                     borderRadius: '0.375rem',
                                     border: 'none',
-                                    backgroundColor: isPending ? '#fca5a5' : '#dc2626',
+                                    backgroundColor: isPending ? '#52525b' : '#18181b',
                                     color: 'white',
                                     fontSize: '0.875rem',
                                     fontWeight: 500,
@@ -1232,8 +1277,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     gap: '0.375rem'
                                 }}
                             >
-                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />}
-                                Decline Request
+                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                Approve
                             </button>
                         </div>
                     </div>
@@ -1271,6 +1316,25 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                         <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
                             Enter the final refund amount. The student will be notified that their refund is ready.
                         </p>
+
+                        {/* Request Details */}
+                        <div style={{
+                            backgroundColor: '#f4f4f5',
+                            borderRadius: '0.5rem',
+                            padding: '0.75rem',
+                            marginBottom: '1rem'
+                        }}>
+                            <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem' }}>
+                                {request.title}
+                            </p>
+                            <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
+                                {request.user?.name || request.user?.email} • Estimated: {request.amount.toFixed(2)} {request.certificate?.currency || 'DH'}
+                                {receiptTotalDH > 0 && (
+                                    <> • Receipt Total: <span style={{ fontWeight: 600, color: '#18181b' }}>{receiptTotalDH.toFixed(2)}</span> DH</>
+                                )}
+                            </p>
+                        </div>
+
                         <div style={{ marginBottom: '1rem' }}>
                             <label style={{
                                 display: 'block',
@@ -1388,7 +1452,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             padding: '1rem',
                             backgroundColor: '#fafafa',
                             borderRadius: '0.5rem',
-                            marginBottom: '1.5rem',
+                            marginBottom: '1rem',
                             border: '1px solid #f4f4f5'
                         }}>
                             <p style={{ fontSize: '0.875rem', color: '#52525b', margin: 0, marginBottom: '0.5rem' }}>
@@ -1399,8 +1463,28 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             </p>
                         </div>
 
-                        <p style={{ color: '#dc2626', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                            Are you sure you want to delete this refund request? This will permanently remove all associated data including receipts and history.
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                            Please provide a reason for deleting this request. The student will be notified.
+                        </p>
+
+                        <textarea
+                            value={deleteReason}
+                            onChange={(e) => setDeleteReason(e.target.value)}
+                            placeholder="Enter reason for deletion..."
+                            style={{
+                                width: '100%',
+                                minHeight: '5rem',
+                                padding: '0.75rem',
+                                borderRadius: '0.5rem',
+                                border: '1px solid #e4e4e7',
+                                fontSize: '0.875rem',
+                                resize: 'vertical',
+                                marginBottom: '1rem'
+                            }}
+                        />
+
+                        <p style={{ color: '#dc2626', fontSize: '0.8125rem', marginBottom: '1rem' }}>
+                            This action cannot be undone. All associated data including receipts and history will be permanently removed.
                         </p>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -1438,6 +1522,110 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             >
                                 {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <Trash2 style={{ width: '0.875rem', height: '0.875rem' }} />}
                                 Delete Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Request More Confirmation Dialog */}
+            {showRequestMoreDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowRequestMoreDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
+                            Request Additional Receipt
+                        </h3>
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            Please provide a reason for requesting additional receipt(s). The student will be notified.
+                        </p>
+
+                        {/* Request Details */}
+                        <div style={{
+                            backgroundColor: '#f4f4f5',
+                            borderRadius: '0.5rem',
+                            padding: '0.75rem',
+                            marginBottom: '1rem'
+                        }}>
+                            <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem' }}>
+                                {request.title}
+                            </p>
+                            <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
+                                {request.user?.name || request.user?.email} • {receipts.length} receipt(s) uploaded
+                            </p>
+                        </div>
+
+                        <textarea
+                            value={requestMoreReason}
+                            onChange={(e) => setRequestMoreReason(e.target.value)}
+                            placeholder="Enter reason for requesting more receipts..."
+                            style={{
+                                width: '100%',
+                                minHeight: '5rem',
+                                padding: '0.75rem',
+                                borderRadius: '0.5rem',
+                                border: '1px solid #e4e4e7',
+                                fontSize: '0.875rem',
+                                resize: 'vertical',
+                                marginBottom: '1rem'
+                            }}
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowRequestMoreDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmRequestMore}
+                                disabled={isPending}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #fbbf24',
+                                    backgroundColor: isPending ? '#fef3c7' : 'white',
+                                    color: '#b45309',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: isPending ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem'
+                                }}
+                            >
+                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <Plus style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                Request More
                             </button>
                         </div>
                     </div>

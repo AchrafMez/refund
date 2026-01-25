@@ -6,7 +6,7 @@ import { Plane, Laptop, GraduationCap, HelpCircle } from "lucide-react"
 const categories: { id: RequestCategory; label: string; icon: typeof Plane }[] = [
   { id: 'transport', label: 'Transport & Travel', icon: Plane },
   { id: 'equipment', label: 'Hardware & Equipment', icon: Laptop },
-  { id: 'certification', label: 'Training & Certs', icon: GraduationCap },
+  { id: 'certification', label: 'Certifications', icon: GraduationCap },
   { id: 'other', label: 'Other Expenses', icon: HelpCircle },
 ]
 

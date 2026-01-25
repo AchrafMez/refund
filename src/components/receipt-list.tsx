@@ -162,61 +162,83 @@ function ReceiptItem({
         </div>
       </div>
 
-      {/* Amount */}
+      {/* Amount - Staff sets the final payment amount in DH (local currency) */}
       {isStaff ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <div style={{ position: 'relative' }}>
-            <span
-              style={{
-                position: 'absolute',
-                left: '0.5rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                fontSize: '0.75rem',
-                color: '#71717a',
-                fontWeight: 500
-              }}
-            >
-              {currency === 'USD' ? '$' : ''}
-            </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ 
+            position: 'relative', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            padding: '0.375rem 0.625rem',
+            borderRadius: '0.375rem',
+            border: '1px solid',
+            borderColor: hasChanged ? '#fbbf24' : '#e4e4e7',
+            backgroundColor: hasChanged ? '#fffbeb' : '#fafafa',
+            transition: 'all 150ms'
+          }}>
             <input
               type="number"
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
               style={{
-                width: '5.5rem',
-                padding: currency === 'USD' ? '0.375rem 0.5rem 0.375rem 1.25rem' : '0.375rem 0.5rem',
-                fontSize: '0.8125rem',
-                border: '1px solid',
-                borderColor: hasChanged ? '#fbbf24' : '#e4e4e7',
-                borderRadius: '0.25rem',
-                backgroundColor: hasChanged ? '#fffbeb' : 'white',
-                outline: 'none'
+                width: '4.5rem',
+                padding: '0',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                border: 'none',
+                backgroundColor: 'transparent',
+                outline: 'none',
+                textAlign: 'right',
+                color: '#18181b'
               }}
             />
+            <span
+              style={{
+                fontSize: '0.75rem',
+                color: '#71717a',
+                fontWeight: 500,
+                paddingLeft: '0.25rem',
+                borderLeft: '1px solid #e4e4e7'
+              }}
+            >
+              DH
+            </span>
           </div>
           <button
             onClick={handleSave}
             disabled={!hasChanged || isPending}
+            title={hasChanged ? 'Save amount' : 'No changes to save'}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '1.75rem',
-              height: '1.75rem',
-              borderRadius: '0.25rem',
-              border: 'none',
-              backgroundColor: saved ? '#16a34a' : hasChanged ? '#18181b' : '#e4e4e7',
+              width: '2rem',
+              height: '2rem',
+              borderRadius: '0.375rem',
+              border: hasChanged ? 'none' : '1px solid #e4e4e7',
+              backgroundColor: saved ? '#16a34a' : hasChanged ? '#18181b' : 'white',
               color: saved || hasChanged ? 'white' : '#a1a1aa',
               cursor: hasChanged && !isPending ? 'pointer' : 'not-allowed',
               transition: 'all 150ms'
+            }}
+            onMouseEnter={(e) => {
+              if (hasChanged && !isPending && !saved) {
+                e.currentTarget.style.backgroundColor = '#27272a'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (hasChanged && !isPending && !saved) {
+                e.currentTarget.style.backgroundColor = '#18181b'
+              }
             }}
           >
             {isPending ? (
               <Loader2 style={{ width: '0.875rem', height: '0.875rem', animation: 'spin 1s linear infinite' }} />
             ) : saved ? (
-              <span style={{ fontSize: '0.75rem' }}>✓</span>
+              <span style={{ fontSize: '0.875rem' }}>✓</span>
             ) : (
               <Save style={{ width: '0.875rem', height: '0.875rem' }} />
             )}
@@ -229,7 +251,7 @@ function ReceiptItem({
           color: receipt.amount > 0 ? '#18181b' : '#a1a1aa',
           whiteSpace: 'nowrap'
         }}>
-          {receipt.amount > 0 ? `${receipt.amount.toFixed(2)} ${currency}` : 'Pending'}
+          {receipt.amount > 0 ? `${receipt.amount.toFixed(2)} DH` : 'Pending'}
         </div>
       )}
     </div>

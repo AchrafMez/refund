@@ -312,8 +312,16 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const [showPreview, setShowPreview] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
     const [showApproveDialog, setShowApproveDialog] = useState(false)
+    const [showRequestMoreDialog, setShowRequestMoreDialog] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
-    const [finalAmount, setFinalAmount] = useState(request.amountEst.toString())
+    const [requestMoreReason, setRequestMoreReason] = useState("")
+    
+    // Calculate receipt total from staff-entered amounts
+    const receiptTotal = request.receipts?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0
+    // Use receipt total if available and > 0, otherwise fall back to estimate
+    const [finalAmount, setFinalAmount] = useState(
+        receiptTotal > 0 ? receiptTotal.toString() : request.amountEst.toString()
+    )
     const [isMobile, setIsMobile] = useState(false)
     const [mounted, setMounted] = useState(false)
     // Simple session-based viewed state - starts false (unviewed), becomes true when clicked
@@ -381,11 +389,18 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     }
 
     const handleRequestAdditionalReceipt = () => {
+        setShowRequestMoreDialog(true)
+    }
+
+    const confirmRequestMore = () => {
         startTransition(async () => {
-            await updateRefundStatus(request.id, "PENDING_RECEIPTS", "Staff requested additional receipt(s)")
+            const reason = requestMoreReason.trim() || "Staff requested additional receipt(s)"
+            await updateRefundStatus(request.id, "PENDING_RECEIPTS", reason)
             queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
             router.refresh()
         })
+        setShowRequestMoreDialog(false)
+        setRequestMoreReason("")
     }
 
     const handleDownloadCard = async (e: React.MouseEvent) => {
@@ -824,7 +839,9 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                             {(request.totalAmount && request.totalAmount > 0)
                                 ? request.totalAmount.toFixed(2)
                                 : request.amountEst.toFixed(2)
-                            } <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>{request.certificate?.currency || 'Dhs'}</span>
+                            } <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>
+                                {(request.totalAmount && request.totalAmount > 0) ? 'DH' : (request.certificate?.currency || 'DH')}
+                            </span>
                             {(!request.totalAmount || request.totalAmount === 0) && (
                                 <span style={{ color: '#a1a1aa', fontSize: '0.6875rem', fontWeight: 400, marginLeft: '0.375rem' }}>(estimated)</span>
                             )}
@@ -1062,7 +1079,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         display: 'flex',
                         justifyContent: 'flex-end',
                         gap: '0.5rem',
-                        padding: '0.75rem 1.25rem'
+                        padding: '0.5rem 1.25rem'
                     }}
                 >
                     {/* Reject button - disabled when waiting for receipt */}
@@ -1081,15 +1098,15 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                             fontSize: '0.8125rem',
                             fontWeight: 500,
                             backgroundColor: 'white',
-                            border: '1px solid #e4e4e7',
-                            color: (isPending || request.status === 'PENDING_RECEIPTS') ? '#a1a1aa' : '#71717a',
+                            border: '1px solid #fca5a5',
+                            color: (isPending || request.status === 'PENDING_RECEIPTS') ? '#a1a1aa' : '#dc2626',
                             cursor: (isPending || request.status === 'PENDING_RECEIPTS') ? 'not-allowed' : 'pointer',
                             opacity: request.status === 'PENDING_RECEIPTS' ? 0.5 : 1,
                             transition: 'all 150ms'
                         }}
                         onMouseEnter={(e) => {
                             if (!isPending && request.status !== 'PENDING_RECEIPTS') {
-                                e.currentTarget.style.backgroundColor = '#fafafa'
+                                e.currentTarget.style.backgroundColor = '#fef2f2'
                             }
                         }}
                         onMouseLeave={(e) => {
@@ -1102,8 +1119,8 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />}
                         {type === 'receipt' ? 'Reject Receipt' : 'Reject'}
                     </button>
-                    {/* Request Additional Receipt - for receipt type when not waiting for first receipt */}
-                    {type === 'receipt' && (request.status !== 'PENDING_RECEIPTS' || (request.receipts && request.receipts.length > 0)) && (
+                    {/* Request Additional Receipt - always show for receipt type */}
+                    {type === 'receipt' && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation()
@@ -1292,7 +1309,10 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 {request.title}
                             </p>
                             <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
-                                {request.user?.name || request.user?.email} • Estimated: {request.amountEst.toFixed(2)} {request.certificate?.currency || 'Dhs'}
+                                {request.user?.name || request.user?.email} • Estimated: {request.amountEst.toFixed(2)} {request.certificate?.currency || 'DH'}
+                                {receiptTotal > 0 && (
+                                    <> • Receipt Total: <span style={{ fontWeight: 600, color: '#18181b' }}>{receiptTotal.toFixed(2)}</span> DH</>
+                                )}
                             </p>
                         </div>
 
@@ -1363,6 +1383,121 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                             >
                                 {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />}
                                 {isEstimate ? 'Approve' : 'Mark as Paid'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Request More Confirmation Dialog */}
+            {showRequestMoreDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 100
+                    }}
+                    onClick={() => setShowRequestMoreDialog(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: 'white',
+                            borderRadius: '0.75rem',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '24rem',
+                            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontWeight: 600, color: '#18181b', marginBottom: '0.5rem' }}>
+                            Request Additional Receipt
+                        </h3>
+                        <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            Please provide a reason for requesting additional receipt(s). The student will be notified.
+                        </p>
+
+                        {/* Request Details */}
+                        <div style={{
+                            backgroundColor: '#f4f4f5',
+                            borderRadius: '0.5rem',
+                            padding: '0.75rem',
+                            marginBottom: '1rem'
+                        }}>
+                            <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem' }}>
+                                {request.title}
+                            </p>
+                            <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
+                                {request.user?.name || request.user?.email} • {request.receipts?.length || 0} receipt(s) uploaded
+                            </p>
+                        </div>
+
+                        <textarea
+                            value={requestMoreReason}
+                            onChange={(e) => setRequestMoreReason(e.target.value)}
+                            placeholder="Enter reason for requesting more receipts..."
+                            style={{
+                                width: '100%',
+                                minHeight: '5rem',
+                                padding: '0.75rem',
+                                borderRadius: '0.5rem',
+                                border: '1px solid #e4e4e7',
+                                fontSize: '0.875rem',
+                                resize: 'vertical',
+                                marginBottom: '1rem'
+                            }}
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setShowRequestMoreDialog(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #e4e4e7',
+                                    backgroundColor: 'white',
+                                    color: '#71717a',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmRequestMore}
+                                disabled={isPending}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #fbbf24',
+                                    backgroundColor: isPending ? '#fef3c7' : 'white',
+                                    color: '#b45309',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: isPending ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem',
+                                    transition: 'all 150ms'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!isPending) {
+                                        e.currentTarget.style.backgroundColor = '#fffbeb'
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!isPending) {
+                                        e.currentTarget.style.backgroundColor = 'white'
+                                    }
+                                }}
+                            >
+                                {isPending ? <Loader2 className="animate-spin" style={{ width: '0.875rem', height: '0.875rem' }} /> : <Plus style={{ width: '0.875rem', height: '0.875rem' }} />}
+                                Request More
                             </button>
                         </div>
                     </div>

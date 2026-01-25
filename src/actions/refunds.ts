@@ -44,7 +44,7 @@ export async function getRefunds(params?: PaginationParams): Promise<PaginatedRe
             orderBy: { createdAt: 'desc' },
             skip: getSkip(page, pageSize),
             take: pageSize,
-            include: { receipts: true }             
+            include: { receipts: true, certificate: true }             
         }),
         prisma.refundRequest.count({
             where: { userId: session.user.id }
@@ -548,11 +548,21 @@ export async function updateRefundStatus(
 
     // Notification and WebSocket logic remains...
     if (newStatus === "PENDING_RECEIPTS") {
-        // Check if this is a "request more receipts" scenario (coming from VERIFIED_READY)
-        const wasVerified = request.status === "VERIFIED_READY"
-        const receiptCount = await prisma.receipt.count({ where: { refundRequestId: id } });
+        // Check if this is a "request more receipts" scenario vs initial approval
+        // Initial approval: ESTIMATED -> PENDING_RECEIPTS
+        // Request more: VERIFIED_READY -> PENDING_RECEIPTS or PENDING_RECEIPTS -> PENDING_RECEIPTS
+        const isInitialApproval = request.status === "ESTIMATED"
 
-        if (wasVerified || receiptCount > 0) {
+        if (isInitialApproval) {
+            // Initial approval - student can now upload receipts
+            await createNotification({
+                userId: request.userId,
+                title: "Request Approved!",
+                message: `Your request "${request.title}" was approved. Please upload your receipt.`,
+                type: "APPROVED",
+                refundId: id
+            })
+        } else {
             // Staff is requesting additional receipts
             const reasonText = reason ? ` Note: ${reason}` : ""
             await createNotification({
@@ -560,15 +570,6 @@ export async function updateRefundStatus(
                 title: "Additional Receipt Requested",
                 message: `Staff has requested additional receipt(s) for "${request.title}". Please upload more documentation.${reasonText}`,
                 type: "INFO",
-                refundId: id
-            })
-        } else {
-            // Initial approval
-            await createNotification({
-                userId: request.userId,
-                title: "Request Approved!",
-                message: `Your request "${request.title}" was approved. Please upload your receipt.`,
-                type: "APPROVED",
                 refundId: id
             })
         }
@@ -830,7 +831,7 @@ export async function getReceiptsForRequest(requestId: string) {
 }
 
 // Delete a refund request
-export async function deleteRefundRequest(requestId: string) {
+export async function deleteRefundRequest(requestId: string, reason?: string) {
     const session = await auth.api.getSession({
         headers: await headers()
     })
@@ -849,17 +850,16 @@ export async function deleteRefundRequest(requestId: string) {
         throw new Error("Request not found")
     }
 
-    // Check permissions - owner or staff can delete
+    // Check permissions - only staff can delete
     const currentUser = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true }
     })
 
     const isStaff = currentUser?.role === 'STAFF'
-    const isOwner = request.userId === session.user.id
 
-    if (!isStaff && !isOwner) {
-        throw new Error("Unauthorized")
+    if (!isStaff) {
+        throw new Error("Unauthorized - Only staff can delete requests")
     }
 
     // Don't allow deletion of PAID requests
@@ -868,6 +868,16 @@ export async function deleteRefundRequest(requestId: string) {
     }
 
     try {
+        // Send notification to the user before deleting
+        const reasonText = reason ? ` Reason: ${reason}` : ""
+        await createNotification({
+            userId: request.userId,
+            title: "Request Deleted",
+            message: `Your refund request "${request.title}" has been deleted by staff.${reasonText}`,
+            type: "REJECTED",
+            refundId: requestId
+        })
+
         // Delete related receipts first (cascade should handle this, but being explicit)
         await prisma.receipt.deleteMany({
             where: { refundRequestId: requestId }

@@ -31,9 +31,9 @@ app.prepare().then(() => {
                         '.jpg': 'image/jpeg',
                         '.jpeg': 'image/jpeg',
                         '.png': 'image/png',
-                        '.gif': 'image/gif',
-                        '.webp': 'image/webp',
-                        '.pdf': 'application/pdf'
+                        // '.gif': 'image/gif',
+                        // '.webp': 'image/webp',
+                        // '.pdf': 'application/pdf'
                     }
                     res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream')
                     fs.createReadStream(filePath).pipe(res)

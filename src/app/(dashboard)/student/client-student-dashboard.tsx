@@ -72,6 +72,8 @@ export function ClientStudentDashboard({
                                 amount={req.amountEst}
                                 date={new Date(req.createdAt).toISOString()}
                                 status={req.status as any}
+                                receiptsCount={req.receipts?.length || 0}
+                                currency={req.certificate?.currency || 'DH'}
                             />
                         ))}
                     </div>

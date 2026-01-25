@@ -6,12 +6,15 @@ import {
     Upload,
     CheckCircle,
     XCircle,
-    Edit,
     Clock,
     User,
     ChevronDown,
     ChevronUp,
     History,
+    FileText,
+    RefreshCw,
+    CircleDot,
+    AlertCircle,
 } from "lucide-react";
 
 interface AuditHistoryProps {
@@ -22,37 +25,37 @@ interface AuditHistoryProps {
 
 const actionConfig: Record<
     string,
-    { icon: React.ReactNode; color: string; bgColor: string; label: string }
+    { icon: React.ReactNode; label: string; color: string; bgColor: string }
 > = {
     CREATE: {
-        icon: <Edit size={12} />,
+        icon: <FileText size={14} strokeWidth={1.5} />,
+        label: "Created Request",
         color: "#3b82f6",
         bgColor: "#eff6ff",
-        label: "Created Request",
     },
     UPDATE: {
-        icon: <Edit size={12} />,
+        icon: <RefreshCw size={14} strokeWidth={1.5} />,
+        label: "Updated",
         color: "#f59e0b",
         bgColor: "#fffbeb",
-        label: "Updated",
     },
     APPROVE: {
-        icon: <CheckCircle size={12} />,
+        icon: <CheckCircle size={14} strokeWidth={1.5} />,
+        label: "Approved",
         color: "#22c55e",
         bgColor: "#f0fdf4",
-        label: "Approved",
     },
     REJECT: {
-        icon: <XCircle size={12} />,
+        icon: <XCircle size={14} strokeWidth={1.5} />,
+        label: "Rejected",
         color: "#ef4444",
         bgColor: "#fef2f2",
-        label: "Rejected",
     },
     UPLOAD: {
-        icon: <Upload size={12} />,
+        icon: <Upload size={14} strokeWidth={1.5} />,
+        label: "Uploaded Receipt",
         color: "#8b5cf6",
         bgColor: "#faf5ff",
-        label: "Uploaded Receipt",
     },
 };
 
@@ -70,28 +73,6 @@ function formatTimeAgo(date: Date): string {
     return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Skeleton loader for loading state
-function SkeletonItem() {
-    return (
-        <div style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem 0' }}>
-            <div style={{
-                width: '1.75rem',
-                height: '1.75rem',
-                borderRadius: '50%',
-                backgroundColor: '#f4f4f5',
-                animation: 'pulse 2s ease-in-out infinite'
-            }} />
-            <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <div style={{ width: '6rem', height: '0.875rem', backgroundColor: '#f4f4f5', borderRadius: '0.25rem' }} />
-                    <div style={{ width: '3rem', height: '0.875rem', backgroundColor: '#f4f4f5', borderRadius: '0.25rem' }} />
-                </div>
-                <div style={{ width: '8rem', height: '0.75rem', backgroundColor: '#f4f4f5', borderRadius: '0.25rem' }} />
-            </div>
-        </div>
-    );
-}
-
 export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) {
     const { data: logs = [], isLoading: loading, isError } = useQuery({
         queryKey: ["auditLogs", refundId],
@@ -101,45 +82,6 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
         refetchOnWindowFocus: true,
         refetchInterval: isOpen ? 5000 : false,
     });
-
-    const renderDetails = (details: Record<string, unknown>, action: string) => {
-        const items: string[] = [];
-
-        if (details.oldStatus && details.newStatus) {
-            items.push(`Status: ${details.oldStatus} → ${details.newStatus}`);
-        }
-        if (details.amountFinal !== undefined) {
-            items.push(`Final Amount: DH ${details.amountFinal}`);
-        }
-        if (details.reason) {
-            items.push(`Reason: ${details.reason}`);
-        }
-        if (details.receiptUrl) {
-            items.push(`Receipt uploaded`);
-        }
-        if (details.amount !== undefined && action === "UPLOAD") {
-            items.push(`Amount: DH ${details.amount}`);
-        }
-
-        return items.length > 0 ? (
-            <div
-                style={{
-                    marginTop: "0.5rem",
-                    padding: "0.5rem 0.75rem",
-                    backgroundColor: "#fafafa",
-                    borderRadius: "0.375rem",
-                    border: "1px solid #f4f4f5",
-                    fontSize: "0.75rem",
-                    color: "#52525b",
-                    lineHeight: 1.5,
-                }}
-            >
-                {items.map((item, i) => (
-                    <div key={i}>{item}</div>
-                ))}
-            </div>
-        ) : null;
-    };
 
     return (
         <div
@@ -152,7 +94,7 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
                 marginTop: '1.5rem'
             }}
         >
-            {/* Header - matches Expense Details style */}
+            {/* Header */}
             <button
                 onClick={onToggle}
                 style={{
@@ -161,11 +103,10 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
                     justifyContent: "space-between",
                     width: "100%",
                     padding: "1rem 1.5rem",
-                    background: isOpen ? "#fafafa" : "white",
+                    background: "#fafafa",
                     border: "none",
-                    borderBottom: isOpen ? "1px solid #f4f4f5" : "none",
+                    borderBottom: isOpen ? "1px solid #e4e4e7" : "none",
                     cursor: "pointer",
-                    transition: "background 150ms",
                 }}
             >
                 <h3 style={{
@@ -179,85 +120,71 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
                     alignItems: 'center',
                     gap: '0.5rem'
                 }}>
-                    <History size={14} style={{ color: '#71717a' }} />
+                    <History size={14} strokeWidth={1.5} style={{ color: '#71717a' }} />
                     Activity History
                 </h3>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
+                    gap: '0.625rem',
                     color: '#71717a'
                 }}>
-                    {!isOpen && logs.length > 0 && (
-                        <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>
-                            {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
+                    {logs.length > 0 && (
+                        <span style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#a1a1aa',
+                            fontWeight: 500
+                        }}>
+                            {logs.length}
                         </span>
                     )}
-                    {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {isOpen ? <ChevronUp size={16} strokeWidth={1.5} /> : <ChevronDown size={16} strokeWidth={1.5} />}
                 </div>
             </button>
 
             {/* Content */}
             {isOpen && (
-                <div style={{ padding: "1rem 1.5rem" }}>
+                <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
                     {/* Loading State */}
                     {loading && (
-                        <div>
-                            <SkeletonItem />
-                            <SkeletonItem />
+                        <div style={{ padding: '2rem', textAlign: 'center', color: '#a1a1aa' }}>
+                            <RefreshCw size={18} strokeWidth={1.5} style={{ animation: 'spin 1s linear infinite' }} />
                         </div>
                     )}
 
                     {/* Error State */}
                     {isError && (
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '1rem',
-                            backgroundColor: '#fef2f2',
-                            borderRadius: '0.5rem',
-                            color: '#dc2626',
-                            fontSize: '0.875rem'
+                            padding: '1.5rem',
+                            textAlign: 'center',
+                            color: '#a1a1aa',
+                            fontSize: '0.8125rem'
                         }}>
-                            <XCircle size={16} />
-                            Failed to load history
+                            Failed to load
                         </div>
                     )}
 
                     {/* Empty State */}
                     {!loading && !isError && logs.length === 0 && (
                         <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            padding: '2rem 1rem',
-                            color: '#a1a1aa'
+                            padding: '2rem',
+                            textAlign: 'center',
+                            color: '#a1a1aa',
+                            fontSize: '0.8125rem'
                         }}>
-                            <Clock size={32} style={{ marginBottom: '0.75rem', opacity: 0.5 }} />
-                            <span style={{ fontSize: '0.875rem' }}>No activity yet</span>
+                            No activity yet
                         </div>
                     )}
 
-                    {/* Timeline */}
+                    {/* Activity List */}
                     {!loading && logs.length > 0 && (
-                        <div style={{ position: 'relative' }}>
-                            {/* Timeline line */}
-                            <div style={{
-                                position: 'absolute',
-                                left: '0.8125rem',
-                                top: '1.75rem',
-                                bottom: '1rem',
-                                width: '2px',
-                                backgroundColor: '#f4f4f5',
-                            }} />
-
+                        <div>
                             {logs.map((log, index) => {
                                 const config = actionConfig[log.action] || {
-                                    icon: <Edit size={12} />,
+                                    icon: <CircleDot size={14} strokeWidth={1.5} />,
+                                    label: log.action,
                                     color: "#71717a",
                                     bgColor: "#f4f4f5",
-                                    label: log.action,
                                 };
 
                                 return (
@@ -265,25 +192,24 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
                                         key={log.id}
                                         style={{
                                             display: "flex",
-                                            gap: "1rem",
-                                            paddingBottom: index < logs.length - 1 ? "1.25rem" : "0",
-                                            position: "relative",
+                                            alignItems: "center",
+                                            gap: "0.75rem",
+                                            padding: "0.875rem 1.5rem",
+                                            borderBottom: index < logs.length - 1 ? "1px solid #f4f4f5" : "none",
                                         }}
                                     >
-                                        {/* Timeline dot */}
+                                        {/* Icon */}
                                         <div
                                             style={{
-                                                width: "1.625rem",
-                                                height: "1.625rem",
-                                                borderRadius: "50%",
+                                                width: "2rem",
+                                                height: "2rem",
+                                                borderRadius: "0.5rem",
                                                 backgroundColor: config.bgColor,
-                                                border: `2px solid ${config.color}`,
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
                                                 color: config.color,
                                                 flexShrink: 0,
-                                                zIndex: 1,
                                             }}
                                         >
                                             {config.icon}
@@ -291,63 +217,50 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
 
                                         {/* Content */}
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            {/* User row */}
-                                            <div
-                                                style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: "0.5rem",
-                                                    flexWrap: "wrap",
-                                                    marginBottom: "0.25rem",
-                                                }}
-                                            >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                 {/* Avatar */}
                                                 {log.user.image ? (
                                                     <img
                                                         src={log.user.image}
-                                                        alt={log.user.name || "User"}
+                                                        alt=""
                                                         style={{
-                                                            width: "1.5rem",
-                                                            height: "1.5rem",
-                                                            borderRadius: "0.25rem",
-                                                            border: "1px solid #e4e4e7",
+                                                            width: "1.25rem",
+                                                            height: "1.25rem",
+                                                            borderRadius: "50%",
                                                             objectFit: "cover",
                                                         }}
                                                     />
                                                 ) : (
                                                     <div
                                                         style={{
-                                                            width: "1.5rem",
-                                                            height: "1.5rem",
-                                                            borderRadius: "0.25rem",
-                                                            backgroundColor: "#f4f4f5",
-                                                            border: "1px solid #e4e4e7",
+                                                            width: "1.25rem",
+                                                            height: "1.25rem",
+                                                            borderRadius: "50%",
+                                                            backgroundColor: "#e4e4e7",
                                                             display: "flex",
                                                             alignItems: "center",
                                                             justifyContent: "center",
                                                             color: "#71717a",
                                                         }}
                                                     >
-                                                        <User size={12} />
+                                                        <User size={10} strokeWidth={1.5} />
                                                     </div>
                                                 )}
 
                                                 {/* Name */}
-                                                <span
-                                                    style={{
-                                                        fontSize: "0.875rem",
-                                                        fontWeight: 600,
-                                                        color: "#18181b",
-                                                    }}
-                                                >
-                                                    {log.user.name || log.user.email}
+                                                <span style={{
+                                                    fontSize: "0.8125rem",
+                                                    fontWeight: 500,
+                                                    color: "#18181b",
+                                                }}>
+                                                    {log.user.name || log.user.email?.split('@')[0]}
                                                 </span>
 
                                                 {/* Role badge */}
                                                 <span
                                                     style={{
                                                         fontSize: "0.625rem",
-                                                        fontWeight: 500,
+                                                        fontWeight: 600,
                                                         color: log.user.role === 'STAFF' ? '#7c3aed' : '#71717a',
                                                         backgroundColor: log.user.role === 'STAFF' ? '#f5f3ff' : '#f4f4f5',
                                                         padding: "0.125rem 0.375rem",
@@ -358,33 +271,26 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
                                                 >
                                                     {log.user.role}
                                                 </span>
-
-                                                {/* Time */}
-                                                <span
-                                                    style={{
-                                                        fontSize: "0.75rem",
-                                                        color: "#a1a1aa",
-                                                        marginLeft: "auto",
-                                                    }}
-                                                >
-                                                    {formatTimeAgo(log.createdAt)}
-                                                </span>
                                             </div>
 
-                                            {/* Action label */}
-                                            <div
-                                                style={{
-                                                    fontSize: "0.875rem",
-                                                    fontWeight: 500,
-                                                    color: "#3f3f46",
-                                                }}
-                                            >
+                                            {/* Action */}
+                                            <div style={{
+                                                fontSize: "0.8125rem",
+                                                color: "#52525b",
+                                                marginTop: "0.125rem"
+                                            }}>
                                                 {config.label}
                                             </div>
-
-                                            {/* Details */}
-                                            {renderDetails(log.details as Record<string, unknown>, log.action)}
                                         </div>
+
+                                        {/* Time */}
+                                        <span style={{
+                                            fontSize: "0.75rem",
+                                            color: "#a1a1aa",
+                                            flexShrink: 0,
+                                        }}>
+                                            {formatTimeAgo(log.createdAt)}
+                                        </span>
                                     </div>
                                 );
                             })}

@@ -603,7 +603,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
             backgroundColor: 'white',
             borderRadius: '0.75rem',
             padding: 0,
-            maxWidth: '28rem',
+            maxWidth: '24rem',
             width: '100%',
             overflow: 'hidden',
             border: '1px solid #e4e4e7',
@@ -613,14 +613,14 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
           {/* Header */}
           <div
             style={{
-              padding: '1.5rem 2rem 0',
+              padding: '1.5rem 1.5rem 0',
             }}
           >
             <DialogHeader>
               <DialogTitle
                 style={{
                   color: '#18181b',
-                  fontSize: '1.25rem',
+                  fontSize: '1.125rem',
                   fontWeight: 600,
                   letterSpacing: '-0.025em',
                   display: 'flex',
@@ -631,7 +631,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                 <img 
                   src="/1337.png" 
                   alt="Logo" 
-                  style={{ height: '1.5rem', width: 'auto' }} 
+                  style={{ height: '1.25rem', width: 'auto' }} 
                 />
                 Refunds
               </DialogTitle>
@@ -639,19 +639,19 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
           </div>
 
           {/* Content */}
-          <div style={{ padding: '1.5rem 2rem' }}>
-            <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
+          <div style={{ padding: '1.25rem 1.5rem' }}>
+            <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.875rem' }}>
               How it works
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
               {/* Step 1 */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div
                     style={{
-                      width: '2.25rem',
-                      height: '2.25rem',
+                      width: '2rem',
+                      height: '2rem',
                       backgroundColor: '#f4f4f5',
                       borderRadius: '50%',
                       display: 'flex',
@@ -660,27 +660,27 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                       flexShrink: 0
                     }}
                   >
-                    <FileText style={{ width: '0.875rem', height: '0.875rem', color: '#52525b' }} />
+                    <FileText style={{ width: '0.875rem', height: '0.875rem', color: '#52525b' }} strokeWidth={1.5} />
                   </div>
-                  <div style={{ width: '1px', height: '2rem', backgroundColor: '#e4e4e7' }} />
+                  <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#e4e4e7' }} />
                 </div>
-                <div style={{ paddingBottom: '1.25rem' }}>
-                  <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                <div style={{ paddingBottom: '1rem', transform: 'translateY(-1px)' }}>
+                  <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.8125rem', margin: 0 }}>
                     Submit an estimate
                   </p>
-                  <p style={{ color: '#71717a', fontSize: '0.75rem', margin: 0 }}>
+                  <p style={{ color: '#71717a', fontSize: '0.75rem', margin: 0, marginTop: '0.125rem' }}>
                     Create a request with expense details
                   </p>
                 </div>
               </div>
 
               {/* Step 2 */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div
                     style={{
-                      width: '2.25rem',
-                      height: '2.25rem',
+                      width: '2rem',
+                      height: '2rem',
                       backgroundColor: '#f4f4f5',
                       borderRadius: '50%',
                       display: 'flex',
@@ -689,27 +689,27 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                       flexShrink: 0
                     }}
                   >
-                    <Upload style={{ width: '0.875rem', height: '0.875rem', color: '#52525b' }} />
+                    <Upload style={{ width: '0.875rem', height: '0.875rem', color: '#52525b' }} strokeWidth={1.5} />
                   </div>
-                  <div style={{ width: '1px', height: '2rem', backgroundColor: '#e4e4e7' }} />
+                  <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#e4e4e7' }} />
                 </div>
-                <div style={{ paddingBottom: '1.25rem' }}>
-                  <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                <div style={{ paddingBottom: '1rem', transform: 'translateY(-1px)' }}>
+                  <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.8125rem', margin: 0 }}>
                     Upload your receipt
                   </p>
-                  <p style={{ color: '#71717a', fontSize: '0.75rem', margin: 0 }}>
+                  <p style={{ color: '#71717a', fontSize: '0.75rem', margin: 0, marginTop: '0.125rem' }}>
                     Attach proof after staff approval
                   </p>
                 </div>
               </div>
 
               {/* Step 3 */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div
                     style={{
-                      width: '2.25rem',
-                      height: '2.25rem',
+                      width: '2rem',
+                      height: '2rem',
                       backgroundColor: '#18181b',
                       borderRadius: '50%',
                       display: 'flex',
@@ -718,14 +718,14 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                       flexShrink: 0
                     }}
                   >
-                    <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem', color: 'white' }} />
+                    <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem', color: 'white' }} strokeWidth={1.5} />
                   </div>
                 </div>
-                <div>
-                  <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                <div style={{ transform: 'translateY(-1px)' }}>
+                  <p style={{ fontWeight: 500, color: '#18181b', fontSize: '0.8125rem', margin: 0 }}>
                     Get reimbursed
                   </p>
-                  <p style={{ color: '#71717a', fontSize: '0.75rem', margin: 0 }}>
+                  <p style={{ color: '#71717a', fontSize: '0.75rem', margin: 0, marginTop: '0.125rem' }}>
                     Receive your refund after verification
                   </p>
                 </div>
@@ -736,15 +736,15 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
           {/* Footer */}
           <div
             style={{
-              padding: '1.25rem 2rem',
+              padding: '1rem 1.5rem',
               borderTop: '1px solid #f4f4f5',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between'
             }}
           >
-            <p style={{ fontSize: '0.75rem', color: '#a1a1aa', margin: 0 }}>
-              v1.0 · Built for 1337
+            <p style={{ fontSize: '0.6875rem', color: '#a1a1aa', margin: 0 }}>
+              v1.0
             </p>
             <button
               onClick={() => setAboutOpen(false)}
@@ -752,7 +752,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.375rem',
-                padding: '0.5rem 0.875rem',
+                padding: '0.5rem 0.75rem',
                 backgroundColor: '#18181b',
                 color: 'white',
                 border: 'none',
@@ -766,7 +766,7 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#18181b'}
             >
               Get started
-              <ArrowRight style={{ width: '0.875rem', height: '0.875rem' }} />
+              <ArrowRight style={{ width: '0.75rem', height: '0.75rem' }} />
             </button>
           </div>
         </DialogContent>

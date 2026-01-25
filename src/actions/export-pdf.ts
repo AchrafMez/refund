@@ -94,7 +94,7 @@ export async function getExportData(
 function formatRefundType(type: string): string {
     const typeMap: Record<string, string> = {
         'EQUIPMENT': 'Hardware & Equipment',
-        'CERTIFICATION': 'Training & Certification',
+        'CERTIFICATION': 'Certifications',
         'TRAVEL': 'Transport & Travel',
         'OTHER': 'Other Expenses'
     }
