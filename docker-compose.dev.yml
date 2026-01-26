@@ -43,15 +43,34 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/local_db
       - DIRECT_URL=postgresql://postgres:postgres@db:5432/local_db
       - REDIS_URL=redis://redis:6379
-    volumes:
-      - .:/app
-      - node_modules_dev:/app/node_modules
-      - next_cache_dev:/app/.next
-      - uploads_data_dev:/app/public/uploads
     ports:
       - "3000:3000"
       - "5555:5555" # Prisma Studio
-      - "5000:5000"
+    volumes:
+      - uploads_data_dev:/app/public/uploads
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - node_modules/
+            - .next/
+            - .git/
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: .env
+        - action: rebuild
+          path: .env.example
+        - action: rebuild
+          path: prisma/schema.prisma
+        - action: rebuild
+          path: next.config.ts
+        - action: rebuild
+          path: tsconfig.json
+        - action: rebuild
+          path: eslint.config.mjs
     depends_on:
       db:
         condition: service_healthy
@@ -62,8 +81,6 @@ services:
 volumes:
   postgres_data_dev:
   redis_data_dev:
-  node_modules_dev:
-  next_cache_dev:
   uploads_data_dev:
 
 

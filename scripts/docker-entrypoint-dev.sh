@@ -1,18 +1,15 @@
 #!/bin/sh
 set -e
 
-# Install deps if needed
-if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
-  echo "Installing dependencies..."
-  npm install
-fi
+echo "Starting Dev Environment..."
 
-# Generate Client
+# Ensure Prisma client is up to date (fast because of caching)
+echo "Generating Prisma client..."
 npx prisma generate
 
-# Sync schema
-echo "Syncing database..."
-npx prisma db push
+# Sync schema (non-interactive)
+echo "Syncing database schema..."
+npx prisma db push --skip-generate
 
 echo "Starting dev server..."
 exec npm run dev

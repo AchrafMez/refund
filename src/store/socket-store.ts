@@ -24,11 +24,17 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             existingSocket.disconnect()
         }
 
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:5000"
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== "undefined" ? window.location.origin : "");
         
+        if (!wsUrl) {
+            console.error("[Socket] No WebSocket URL configured and not running in browser.");
+            return;
+        }
+
         const newSocket = io(wsUrl, {
             auth: { sessionToken },
-            transports: ["websocket", "polling"],
+            transports: ["websocket"],
+            path: "/api/socket",
             reconnection: true,
             reconnectionAttempts: 10,
             reconnectionDelay: 1000,
@@ -46,7 +52,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         })
 
         newSocket.on("connect_error", (error) => {
-            console.error("[Socket] Connection error:", error.message)
+            console.error("[Socket] Connection error:", error.message, error)
             set({ isConnected: false })
         })
 

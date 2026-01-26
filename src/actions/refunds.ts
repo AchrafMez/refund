@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { createNotification, notifyAllStaff } from "./notifications"
 import { emitRefundNew, emitRefundUpdated, emitReceiptUploaded } from "@/lib/ws-emitter"
 import { logActivity } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 import { AuditAction, Receipt, CertificateCatalog } from "@prisma/client"
 import {
     PaginationParams,

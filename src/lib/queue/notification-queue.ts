@@ -1,4 +1,5 @@
 import { Queue } from "bullmq"
+import { logger } from "@/lib/logger"
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379"
 export interface NotificationJobData {
@@ -36,10 +37,10 @@ export async function queueNotification(data: NotificationJobData) {
         const job = await notificationQueue.add(data.type, data, {
             jobId: `${safeType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         })
-        console.log(`[Queue] Added job ${job.id}: ${data.type}`)
+        logger.info(`[Queue] Added job ${job.id}: ${data.type}`)
         return job
     } catch (error) {
-        console.error("[Queue] Failed to add job:", error)
+        logger.error({ err: error }, "[Queue] Failed to add job")
         throw error
     }
 }

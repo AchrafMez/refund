@@ -45,8 +45,7 @@ services:
       - REDIS_URL=redis://redis:6379
     ports:
       - "3000:3000"
-      - "5000:5000"
-      - "5555:5555" # temp port
+      - "5555:5555" # Prisma Studio
     volumes:
       - uploads_data:/app/public/uploads
     depends_on:

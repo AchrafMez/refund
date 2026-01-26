@@ -14,7 +14,8 @@ interface SocketProviderProps {
  * and sets up event handlers for query invalidation
  */
 export function SocketProvider({ children, sessionToken }: SocketProviderProps) {
-    const { connect, disconnect } = useSocketStore()
+    const connect = useSocketStore((state) => state.connect)
+    const disconnect = useSocketStore((state) => state.disconnect)
 
     // Initialize socket events handler
     useSocketEvents()

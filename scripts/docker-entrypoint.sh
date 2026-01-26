@@ -1,11 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "Starting app..."
-
-# Generate Prisma client
-echo "Generating Prisma client..."
-npx prisma generate
+echo "Starting Production Environment..."
 
 # Run migrations
 echo "Applying database migrations..."
@@ -13,4 +9,4 @@ npx prisma migrate deploy
 
 # Start app
 echo "Starting application..."
-node dist/server.js
+exec node dist/server.js

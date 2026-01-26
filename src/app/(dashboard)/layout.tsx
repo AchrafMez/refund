@@ -18,14 +18,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       select: { role: true }
     })
     userRole = user?.role || null
-
-    // Get session token for WebSocket authentication
-    const dbSession = await prisma.session.findFirst({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
-      select: { token: true }
-    })
-    sessionToken = dbSession?.token || null
+    sessionToken = session.session.token
   }
 
   return (

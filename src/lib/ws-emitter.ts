@@ -3,6 +3,9 @@
  * Uses BullMQ queue for reliable delivery with fallback to direct emit
  */
 
+import { logger } from "@/lib/logger"
+import { getSocketServer } from "@/lib/socket-server"
+
 type NotificationPayload = {
     id: string
     title: string
@@ -33,9 +36,12 @@ type RefundUpdatePayload = {
  * Direct emit to user (fallback method)
  */
 function emitDirectToUser(userId: string, event: string, data: unknown) {
-    if (global.io) {
-        global.io.to(`user:${userId}`).emit(event, data)
-        console.log(`[WS] Emitted ${event} to user:${userId}`)
+    const io = getSocketServer()
+    if (io) {
+        io.to(`user:${userId}`).emit(event, data)
+        logger.debug(`[WS-DEBUG] Emitted ${event} to user:${userId}`)
+    } else {
+        logger.warn(`[WS-DEBUG] FAILED to emit ${event} to user:${userId}: io instance is undefined`)
     }
 }
 
@@ -43,9 +49,12 @@ function emitDirectToUser(userId: string, event: string, data: unknown) {
  * Direct emit to staff (fallback method)
  */
 function emitDirectToStaff(event: string, data: unknown) {
-    if (global.io) {
-        global.io.to("staff").emit(event, data)
-        console.log(`[WS] Emitted ${event} to staff room`)
+    const io = getSocketServer()
+    if (io) {
+        io.to("staff").emit(event, data)
+        logger.debug(`[WS-DEBUG] Emitted ${event} to staff room`)
+    } else {
+        logger.warn(`[WS-DEBUG] FAILED to emit ${event} to staff room: io instance is undefined`)
     }
 }
 
@@ -57,13 +66,15 @@ async function tryQueueOrDirect(
     directFn: () => void
 ) {
     try {
-        // Only try queue if Redis is configured
-        if (process.env.REDIS_URL) {
+        // In development, we can emit directly for instant feedback
+        // In production, we use the queue for reliability
+        if (process.env.NODE_ENV === "production" && process.env.REDIS_URL) {
             await queueFn()
         } else {
             directFn()
         }
-    } catch {
+    } catch (error) {
+        logger.warn({ err: error }, "[WS] Queue failed, falling back to direct emit")
         directFn()
     }
 }
@@ -88,9 +99,10 @@ export function emitToStaff(event: string, data: unknown) {
  * Emit event to all connected users
  */
 export function emitToAll(event: string, data: unknown) {
-    if (global.io) {
-        global.io.emit(event, data)
-        console.log(`[WS] Emitted ${event} to all`)
+    const io = getSocketServer()
+    if (io) {
+        io.emit(event, data)
+        logger.debug(`[WS] Emitted ${event} to all`)
     }
 }
 

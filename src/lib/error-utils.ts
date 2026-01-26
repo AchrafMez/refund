@@ -3,6 +3,8 @@
  * Prevents leaking sensitive stack traces or internal details to clients
  */
 
+import { logger } from "@/lib/logger";
+
 const isProduction = process.env.NODE_ENV === "production";
 
 // Error messages safe to expose to clients
@@ -33,7 +35,7 @@ export function safeError(error: unknown): string {
   }
   
   // In production, return a generic message for unknown errors
-  console.error("[Server Error]", error);
+  logger.error({ err: error }, "[Server Error]");
   return "An unexpected error occurred. Please try again later.";
 }
 
@@ -42,7 +44,7 @@ export function safeError(error: unknown): string {
  */
 export function handleActionError(error: unknown, context?: string): never {
   const logMessage = context ? `[${context}]` : "[Action Error]";
-  console.error(logMessage, error);
+  logger.error({ err: error }, logMessage);
   
   throw new Error(safeError(error));
 }

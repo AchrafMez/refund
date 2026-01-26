@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { v4 as uuidv4 } from "uuid";
-import fs from "fs";
 import path from "path";
-import { writeFile } from "fs/promises";
+import { apiLogger } from "@/lib/logger";
+import { getStorageProvider } from "@/lib/storage";
 
 // Configuration
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -61,31 +60,12 @@ export async function POST(req: NextRequest) {
             );
         }
         
-        // Create unique filename with sanitized original name
-        const sanitizedFilename = file.name
-            .replace(/\s+/g, "-")
-            .replace(/[^a-zA-Z0-9.-]/g, ""); // Remove special characters
-        const uniqueFilename = `${uuidv4()}-${sanitizedFilename}`;
-        
-        // Ensure uploads directory exists
-        const uploadDir = path.join(process.cwd(), "public", "uploads");
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
+        const storage = getStorageProvider();
+        const result = await storage.upload(file);
 
-        // Save file to public/uploads
-        const filePath = path.join(uploadDir, uniqueFilename);
-        await writeFile(filePath, buffer);
-
-        // Construct public URL
-        const publicUrl = `/uploads/${uniqueFilename}`;
-
-        return NextResponse.json({
-            url: publicUrl,
-            filename: uniqueFilename
-        });
+        return NextResponse.json(result);
     } catch (error) {
-        console.error("Local upload error:", error);
+        apiLogger.error({ err: error }, "Local upload error");
         return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     }
 }
