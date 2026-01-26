@@ -407,7 +407,7 @@ export function StepDetails() {
                     borderRadius: '0.5rem'
                   }}>
                     <div style={{ fontSize: '0.8125rem', color: '#92400e' }}>
-                      <strong>Note:</strong> You will only get refunded <strong>after</strong> you have successfully obtained the certificate if a staff member approved your request.
+                      <strong>Note:</strong> You will only get refunded <strong>after</strong> you have successfully obtained the certificate.
                     </div>
                   </div>
                 </div>

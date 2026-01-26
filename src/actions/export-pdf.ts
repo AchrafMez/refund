@@ -58,14 +58,15 @@ export async function getExportData(
 
     const filteredRequests = requests.filter(r => {
         const isRefunded = r.status === 'PAID'
-        const isWaiting = r.status !== 'PAID' && r.status !== 'DECLINED'
+        // Processing status only (not Validation/ESTIMATED)
+        const isProcessing = r.status === 'PENDING_RECEIPTS' || r.status === 'VERIFIED_READY'
 
         if (options.includeRefunded && options.includeWaiting) {
-            return isRefunded || isWaiting
+            return isRefunded || isProcessing
         } else if (options.includeRefunded) {
             return isRefunded
         } else if (options.includeWaiting) {
-            return isWaiting
+            return isProcessing
         }
         return false
     })
