@@ -11,10 +11,17 @@ interface HistoryItemProps {
         amountEst: number
         createdAt: Date
         status: string
+        type: string
+        totalAmount: number
     }
 }
 
 export function HistoryItem({ request }: HistoryItemProps) {
+    // Determine which amount to show and in which currency
+    const totalAmountExists = request.totalAmount && request.totalAmount > 0
+    const displayAmount = totalAmountExists ? request.totalAmount : request.amountEst
+    const currency = totalAmountExists ? 'DH' : (request.type === 'CERTIFICATION' ? 'USD' : 'DH')
+    
     return (
         <Link
             href={`/student/${request.id}`}
@@ -77,7 +84,7 @@ export function HistoryItem({ request }: HistoryItemProps) {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <span style={{ fontWeight: 500, color: '#18181b', fontSize: '0.9375rem' }}>
-                    {request.amountEst.toFixed(2)} <span style={{ color: '#71717a', fontSize: '0.8125rem' }}>Dhs</span>
+                    {displayAmount.toFixed(2)} <span style={{ color: '#71717a', fontSize: '0.8125rem' }}>{currency}</span>
                 </span>
                 <ChevronRight style={{ width: '1.125rem', height: '1.125rem', color: '#a1a1aa' }} />
             </div>

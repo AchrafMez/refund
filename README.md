@@ -7,11 +7,12 @@ A financial reimbursement tracking platform for the 1337/42 school ecosystem. St
 - **42 School OAuth** - Login with your 42 intra account
 - **Role-based access** - Students submit requests, Staff review them
 - **Status tracking** - Track requests through the approval pipeline
-- **Receipt upload** - Upload receipts for verification
-- **Real-time updates** - Auto-refreshing dashboards with WebSocket
+- **Receipt upload** - Upload receipts for verification via pluggable storage
+- **Real-time updates** - Auto-refreshing dashboards with Socket.IO (namespaced to `/api/socket`)
 - **Notifications** - In-app notifications for status changes
 - **PDF Export** - Download request summaries
 - **Analytics** - Staff dashboard with charts and insights
+- **Security Hardened** - Built-in protection against Path Traversal, XSS, and unauthenticated uploads
 
 ## Quick Start
 
@@ -48,13 +49,20 @@ A financial reimbursement tracking platform for the 1337/42 school ecosystem. St
 
 3. **Choose your environment:**
 
-   ### Option A: Production (Docker - Recommended for Deployment)
+   ### Option A: Development (Docker Watch - Recommended)
+   ```bash
+   # Start with live-sync and auto-rebuild
+   docker compose -f docker-compose.dev.yml watch
+   ```
+   This environment syncs your code changes instantly and auto-rebuilds when `package.json` or critical configs change.
+
+   ### Option B: Production (Docker)
    ```bash
    docker compose up -d --build
    ```
    Runs optimized production build with automatic migrations.
    
-   ### Option B: Development (Local - Recommended for Development)
+   ### Option C: Local (Manual)
    ```bash
    # Start database and Redis
    docker compose up -d db redis
@@ -81,6 +89,20 @@ A financial reimbursement tracking platform for the 1337/42 school ecosystem. St
    - **App**: http://localhost:3000
    - **Prisma Studio** (dev only): http://localhost:5555 (run `npx prisma studio`)
 
+## Architecture & Conventions
+
+### WebSocket Implementation
+The WebSocket server is integrated into the custom `server.ts` and uses a singleton pattern (`src/lib/socket-server.ts`) to share the instance across the Next.js application bundle. The endpoint is namespaced to `/api/socket`.
+
+### File Storage
+File storage is abstracted via the `StorageProvider` interface (`src/lib/storage`). Currently, it supports `LocalStorageProvider`, but can be easily extended to S3 or other cloud providers.
+
+### Logging
+Server-side logging is standardized using **Pino**. Specialized loggers are available:
+- `apiLogger` - For API routes and network requests
+- `authLogger` - For authentication events
+- `auditLogger` - For security and activity auditing
+
 ## Development Commands
 
 ```bash
@@ -103,23 +125,14 @@ npm start
 
 ## Troubleshooting
 
+### WebSocket "Connection Error"
+- Ensure `NEXT_PUBLIC_WS_URL` in `.env` matches your browser URL (usually `http://localhost:3000`).
+- Check if you are using the custom server (`npm run dev`) and not just `next dev`.
+
 ### "Can't reach database server"
 - Make sure Docker containers are running: `docker ps`
 - Start database: `docker compose up -d db redis`
 - Check connection: `docker logs refund-med-db`
-
-### Permission errors with node_modules or .next
-```bash
-# Remove and reinstall
-rm -rf node_modules .next
-npm install
-```
-
-### Prisma Client out of sync
-```bash
-npx prisma generate
-npx prisma db push
-```
 
 ## Tech Stack
 
@@ -128,6 +141,7 @@ npx prisma db push
 - **Auth**: Better-Auth with 42 OAuth
 - **Database**: PostgreSQL + Prisma ORM
 - **Cache/Queue**: Redis + BullMQ
+- **Logging**: Pino
 - **Real-time**: Custom Socket.IO Server
 - **Styling**: Tailwind CSS v4 + Shadcn/UI
 - **State**: TanStack Query + Zustand
@@ -138,33 +152,15 @@ npx prisma db push
 src/
 ├── actions/      # Server actions (database operations)
 ├── app/          # Next.js App Router pages
-│   ├── (auth)/   # Auth pages (login)
-│   ├── (dashboard)/ # Protected pages (student/staff)
-│   └── api/      # API routes
 ├── components/   # React components
-│   ├── ui/       # Shadcn UI components
-│   └── student/  # Student-specific components
 ├── hooks/        # Custom React hooks
-├── lib/          # Core utilities (auth, prisma, queue, websocket)
+├── lib/          # Core utilities
+│   ├── storage/  # File storage providers (Local/S3)
+│   ├── queue/    # Background job processing
+│   ├── logger.ts # Structured logging setup
+│   └── ...
 ├── store/        # Zustand state stores
 └── types/        # TypeScript type definitions
 
 server.ts         # Custom Next.js + Socket.IO server setup
-
-scripts/
-├── backup-db.sh          # Database backup utility
-├── verify-local-db.sh    # Database verification tool
-├── update-staff-roles.ts # Script to manage staff permissions
-└── docker-*.sh           # Docker management scripts
 ```
-
-## Environment Variables
-
-See `.env.example` for all available options. Key variables:
-
-- `AUTH_SECRET` - Session encryption key
-- `AUTH_42_SCHOOL_ID` - 42 OAuth client ID
-- `AUTH_42_SCHOOL_SECRET` - 42 OAuth client secret
-- `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection (optional, for queues)
-- `NEXT_PUBLIC_BETTER_AUTH_URL` - Auth API URL
