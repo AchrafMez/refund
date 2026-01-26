@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useTransition, useRef, useEffect, useCallback } from "react"
-import { CheckCircle2, XCircle, FileText, Calendar, User2, Loader2, Download, Eye, EyeOff, Plus } from "lucide-react"
-import { AuditHistory } from "@/components/staff/audit-history"
+import Image from "next/image"
+import { useState, useTransition, useRef, useEffect } from "react"
+import { CheckCircle2, XCircle, FileText, Calendar, Loader2, Download, Eye, EyeOff, Plus } from "lucide-react"
 import { updateRefundStatus, rejectReceipt, getAllRefundRequests, getStaffTabCounts } from "@/actions/refunds"
 import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
 import { Pagination } from "@/components/ui/pagination"
-import { PaginatedResult, PaginationMeta } from "@/types/pagination"
+import { PaginatedResult } from "@/types/pagination"
 import { useQuery, useQueryClient } from "@tanstack/react-query" // Removed useSocket import
 
 // Types
@@ -91,10 +90,13 @@ export function StaffDashboardView({ initialData, initialCounts }: StaffDashboar
 
     useEffect(() => {
         if (tabFromUrl && tabFromUrl !== activeTab) {
-            setActiveTab(tabFromUrl)
-            setPage(1)
+            const timer = setTimeout(() => {
+                setActiveTab(tabFromUrl)
+                setPage(1)
+            }, 0)
+            return () => clearTimeout(timer)
         }
-    }, [tabFromUrl])
+    }, [tabFromUrl, activeTab])
 
     const { data: counts } = useQuery({
         queryKey: ["staffTabCounts"],
@@ -310,6 +312,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const queryClient = useQueryClient()
     const [isPending, startTransition] = useTransition()
     const [showPreview, setShowPreview] = useState(false)
+    const [previewError, setPreviewError] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
     const [showApproveDialog, setShowApproveDialog] = useState(false)
     const [showRequestMoreDialog, setShowRequestMoreDialog] = useState(false)
@@ -326,8 +329,6 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const [mounted, setMounted] = useState(false)
     // Simple session-based viewed state - starts false (unviewed), becomes true when clicked
     const [hasViewedReceipt, setHasViewedReceipt] = useState(false)
-    const [previewError, setPreviewError] = useState(false)
-    const [showHistory, setShowHistory] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -669,7 +670,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
             doc.setFontSize(8)
             doc.setTextColor(100, 100, 100)
             doc.text('1337 Refund Management System', margin, pageHeight - 10)
-            const totalPages = (doc as any).internal.getNumberOfPages()
+            const totalPages = (doc as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
             doc.text(`Page 1${totalPages > 1 ? ` of ${totalPages}` : ''} • Generated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
 
             // Save the PDF
@@ -722,9 +723,11 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                         marginBottom: '0.5rem'
                     }}>
                         {request.user.image ? (
-                            <img
+                            <Image
                                 src={request.user.image}
                                 alt={request.user.name || 'User'}
+                                width={32}
+                                height={32}
                                 style={{
                                     width: (mounted && isMobile) ? '1.75rem' : '2rem',
                                     height: (mounted && isMobile) ? '1.75rem' : '2rem',
@@ -1039,9 +1042,11 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                             </div>
                                         </div>
                                         {isImage ? (
-                                            <img
+                                            <Image
                                                 src={receipt.url}
                                                 alt={`Receipt ${index + 1}`}
+                                                width={400}
+                                                height={300}
                                                 style={{
                                                     width: '100%',
                                                     maxHeight: '300px',

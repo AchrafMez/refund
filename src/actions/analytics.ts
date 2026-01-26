@@ -33,7 +33,7 @@ export async function getAnalyticsData(startDate: Date, endDate: Date, types: st
             },
             ...(types.length > 0 && {
                 type: {
-                    in: types.map(t => t as any) // Cast to any to avoid enum type issues since we receive strings
+                    in: types.map(t => t as 'EQUIPMENT' | 'CERTIFICATION' | 'TRAVEL' | 'OTHER')
                 }
             })
         },

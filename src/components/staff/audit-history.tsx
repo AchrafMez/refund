@@ -1,12 +1,12 @@
 "use client";
 
-import { getRefundAuditLogs, AuditLogWithUser } from "@/actions/audit";
+import Image from "next/image"
 import { useQuery } from "@tanstack/react-query";
+import { getRefundAuditLogs } from "@/actions/audit";
 import {
     Upload,
     CheckCircle,
     XCircle,
-    Clock,
     User,
     ChevronDown,
     ChevronUp,
@@ -14,7 +14,6 @@ import {
     FileText,
     RefreshCw,
     CircleDot,
-    AlertCircle,
 } from "lucide-react";
 
 interface AuditHistoryProps {
@@ -220,9 +219,11 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                 {/* Avatar */}
                                                 {log.user.image ? (
-                                                    <img
+                                                    <Image
                                                         src={log.user.image}
-                                                        alt=""
+                                                        alt={log.user.name || "User"}
+                                                        width={24}
+                                                        height={24}
                                                         style={{
                                                             width: "1.25rem",
                                                             height: "1.25rem",

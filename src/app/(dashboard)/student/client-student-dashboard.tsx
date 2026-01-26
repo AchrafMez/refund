@@ -6,25 +6,32 @@ import Link from "next/link"
 import { ActiveRequestCard } from "@/components/student/active-request-card"
 import { StatsRow } from "@/components/student/stats-cards"
 import { getRefunds } from "@/actions/refunds"
-import { PaginatedResult } from "@/types/pagination"
 
-type RefundRequest = PaginatedResult<any>["data"][0]
+type RefundRequest = {
+  id: string;
+  status: string;
+  title: string;
+  description: string | null;
+  amountEst: number;
+  amountFinal: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  type: string;
+  user: { name: string | null; email: string };
+  receipts: Array<{ id: string; url: string; amount: number }>;
+}
 
 interface ClientStudentDashboardProps {
     initialData: RefundRequest[]
-    initialTotalActive: number
-    initialPendingAction: number
 }
 
 export function ClientStudentDashboard({
-    initialData,
-    initialTotalActive,
-    initialPendingAction
+    initialData
 }: ClientStudentDashboardProps) {
     const { data: result } = useQuery({
         queryKey: ["refunds", { page: 1, pageSize: 50 }],
         queryFn: () => getRefunds({ page: 1, pageSize: 50 }),
-        initialData: { data: initialData, pagination: { page: 1, pageSize: 50, totalItems: initialData.length, totalPages: 1 } } as any,
+        initialData: { data: initialData, pagination: { page: 1, pageSize: 50, totalItems: initialData.length, totalPages: 1 } },
         refetchInterval: 5000,
     })
 
@@ -64,18 +71,23 @@ export function ClientStudentDashboard({
                             gap: '1rem'
                         }}
                     >
-                        {activeRequests.map((req: RefundRequest) => (
-                            <ActiveRequestCard
-                                key={req.id}
-                                id={req.id}
-                                title={req.title}
-                                amount={req.amountEst}
-                                date={new Date(req.createdAt).toISOString()}
-                                status={req.status as any}
-                                receiptsCount={req.receipts?.length || 0}
-                                currency={req.certificate?.currency || 'DH'}
-                            />
-                        ))}
+                        {activeRequests.map((req: RefundRequest) => {
+                            // Calculate total amount from receipts that have been evaluated (amount > 0)
+                            const evaluatedReceiptTotal = req.receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0)
+                            return (
+                                <ActiveRequestCard
+                                    key={req.id}
+                                    id={req.id}
+                                    title={req.title}
+                                    amount={req.amountEst}
+                                    date={new Date(req.createdAt).toISOString()}
+                                    status={req.status as 'ESTIMATED' | 'DECLINED' | 'PENDING_RECEIPTS' | 'VERIFIED_READY' | 'PAID' | 'REJECTED'}
+                                    receipts={req.receipts}
+                                    totalAmount={evaluatedReceiptTotal > 0 ? evaluatedReceiptTotal : undefined}
+                                    receiptsCount={req.receipts.length}
+                                />
+                            )
+                        })}
                     </div>
                 ) : (
                     <div
@@ -106,7 +118,7 @@ export function ClientStudentDashboard({
                             className="text-sm mb-4"
                             style={{ color: '#71717a', maxWidth: '20rem' }}
                         >
-                            You don't have any ongoing refund requests. Start a new one to get reimbursed.
+                            You don&apos;t have any ongoing refund requests. Start a new one to get reimbursed.
                         </p>
                         <Link
                             href="/student/create"

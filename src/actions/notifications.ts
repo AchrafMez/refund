@@ -148,7 +148,7 @@ export async function notifyAllStaff(data: {
             type: data.type,
             refundId: data.refundId
         })
-    } catch (error) {
+    } catch {
         // Silent fail for notifications - don't break main flow
     }
 }

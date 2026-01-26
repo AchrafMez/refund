@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query" // Added import
 import { FileText } from "lucide-react"
 import { getRefunds } from "@/actions/refunds"
@@ -32,7 +32,7 @@ export function HistoryList({ initialData }: HistoryListProps) {
     queryKey: ['student-history', { page, pageSize }],
     queryFn: () => getRefunds({ page, pageSize }),
     placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
-    initialData: page === 1 ? (initialData as any) : undefined
+    initialData: page === 1 ? initialData : undefined
   })
 
   // Cast back to expected type

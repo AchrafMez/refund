@@ -15,7 +15,7 @@ export function StepSummary() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [certificates, setCertificates] = useState<any[]>([])
+  const [certificates, setCertificates] = useState<Array<{id: string; name: string; provider: string; fixedCost: number}>>([])
   const router = useRouter()
 
   // Fetch user role and certificates on mount
@@ -117,12 +117,12 @@ export function StepSummary() {
       // Redirect staff to staff dashboard, students to student dashboard
       router.push(isStaff ? "/staff" : "/student")
       router.refresh()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to submit request:", error)
       setIsSubmitting(false)
 
       // Check if it's an authentication error
-      const errorMessage = error?.message || String(error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
       if (errorMessage.includes("Unauthorized") || errorMessage.includes("session") || errorMessage.includes("auth")) {
         router.push("/login?error=auth_required")
       }

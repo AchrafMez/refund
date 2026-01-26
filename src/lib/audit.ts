@@ -7,7 +7,7 @@ export async function logActivity(
   userName: string, // Added userName
   action: AuditAction,
   entityId: string,
-  details?: Record<string, any>
+  details?: Record<string, unknown>
 ) {
   // 1. Structured Pino Log (for production monitoring & log aggregators)
   auditLogger.info(

@@ -96,12 +96,16 @@ export function StatsRow({ totalActive, pendingAction }: StatsRowProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 480)
     }
+    const timer = setTimeout(() => setMounted(true), 0)
     checkMobile()
     window.addEventListener('resize', checkMobile)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', checkMobile)
+    }
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 

@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import {
   BarChart3,
   TrendingUp,
@@ -9,15 +10,12 @@ import {
   ArrowDownRight,
   Calendar as CalendarIcon,
   Filter,
-  User2,
-  ChevronLeft,
-  ChevronRight
+  User2
 } from "lucide-react"
-import Link from "next/link"
-import { getAnalyticsData, type AnalyticsStats, type TimelineItem } from "@/actions/analytics"
+import { getAnalyticsData } from "@/actions/analytics"
 import { getExportData } from "@/actions/export-pdf"
 import { ExportButton } from "@/components/export-button"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { CustomCalendar, formatDate } from "@/components/ui/custom-calendar"
@@ -66,7 +64,7 @@ export default function AnalyticsPage() {
       const data = await getAnalyticsData(dateRange.start, dateRange.end, selectedTypes)
       return {
         stats: data.stats,
-        timeline: data.timeline.map((item: any) => ({
+        timeline: data.timeline.map((item: { submittedAt: string; completedAt?: string; [key: string]: unknown }) => ({
           ...item,
           submittedAt: new Date(item.submittedAt),
           completedAt: item.completedAt ? new Date(item.completedAt) : null
@@ -76,15 +74,15 @@ export default function AnalyticsPage() {
     enabled: !!dateRange.start && !!dateRange.end
   })
 
-  const timelineData = analyticsData?.timeline || []
-  const statsData = analyticsData?.stats || {
+  const timelineData = useMemo(() => analyticsData?.timeline || [], [analyticsData?.timeline])
+  const statsData = useMemo(() => analyticsData?.stats || {
     totalRequests: 0,
     pendingApproval: 0,
     totalPayouts: 0,
     avgProcessingTime: 0
-  }
+  }, [analyticsData?.stats])
 
-  const stats = [
+  const stats = useMemo(() => [
     {
       label: "Total Requests",
       value: statsData.totalRequests.toString(),
@@ -113,7 +111,7 @@ export default function AnalyticsPage() {
       trend: "neutral",
       icon: TrendingUp
     }
-  ]
+  ], [statsData])
 
   // Zoom Handler (Scroll Wheel)
   useEffect(() => {
@@ -736,7 +734,13 @@ export default function AnalyticsPage() {
                         flexShrink: 0
                       }}>
                         {item.image ? (
-                          <img src={item.image} alt={item.user} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <Image 
+                            src={item.image} 
+                            alt={item.user} 
+                            width={40} 
+                            height={40} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
                         ) : (
                           <User2 style={{ width: '1.125rem', height: '1.125rem', color: '#71717a' }} />
                         )}

@@ -1,6 +1,7 @@
 import { useWizardStore } from "@/store/wizard-store"
 import React, { useState, useEffect, useRef } from "react"
 import { ChevronLeft, ChevronRight, Calendar, Settings, ChevronDown, Check } from "lucide-react"
+import Link from "next/link"
 import { getCertificates } from "@/actions/refunds"
 import { authClient } from "@/lib/auth-client"
 import { CustomCalendar } from "@/components/ui/custom-calendar"
@@ -67,7 +68,7 @@ export function StepDetails() {
   useEffect(() => {
     const checkStaffRole = async () => {
       const session = await authClient.getSession()
-      if ((session?.data?.user as any)?.role === 'STAFF') {
+      if ((session?.data?.user as { role?: string })?.role === 'STAFF') {
         setIsStaff(true)
       }
     }
@@ -337,7 +338,7 @@ export function StepDetails() {
                     )}
                   </div>
                   {isStaff && (
-                    <a
+                    <Link
                       href="/staff/certificates"
                       style={{
                         width: '2.75rem',
@@ -357,7 +358,7 @@ export function StepDetails() {
                       title="Manage Certificates"
                     >
                       <Settings size={18} />
-                    </a>
+                    </Link>
                   )}
                 </div>
                 {errors.certificateId && (
@@ -445,7 +446,7 @@ export function StepDetails() {
                         <CustomCalendar
                           mode="single"
                           value={data.targetDate ? new Date(data.targetDate) : null}
-                          onChange={(date: any) => {
+                          onChange={(date: Date | null) => {
                             setData({ targetDate: date })
                             setShowCalendar(false)
                           }}
