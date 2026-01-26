@@ -91,13 +91,6 @@ export default function AnalyticsPage() {
       icon: BarChart3
     },
     {
-      label: "Pending Approval",
-      value: statsData.pendingApproval.toString(),
-      change: null,
-      trend: "neutral",
-      icon: Users
-    },
-    {
       label: "Total Payouts",
       value: `${statsData.totalPayouts.toLocaleString(undefined, { maximumFractionDigits: 0 })} DH`,
       change: null,
@@ -310,9 +303,9 @@ export default function AnalyticsPage() {
         }
         
         @media (min-width: 1024px) {
-          /* Stats Grid - 4 columns on desktop */
+          /* Stats Grid - 3 columns on desktop */
           .stats-grid {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
           }
         }
       `}</style>

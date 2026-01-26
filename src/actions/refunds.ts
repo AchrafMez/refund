@@ -288,7 +288,7 @@ export async function createEstimate(data: {
     const status = isStaff ? "VERIFIED_READY" : "ESTIMATED"
 
     let finalAmount = data.amount;
-    let finalTotalAmount = 0;
+    const finalTotalAmount = 0;
 
     if (data.type === "CERTIFICATION" && data.certificateId) {
         const cert = await prisma.certificateCatalog.findUnique({
@@ -296,7 +296,7 @@ export async function createEstimate(data: {
         });
         if (cert) {
             finalAmount = cert.fixedCost;
-            finalTotalAmount = cert.fixedCost;
+            // Don't set finalTotalAmount for certificates - they should start at 0 like other refunds
         }
     }
 

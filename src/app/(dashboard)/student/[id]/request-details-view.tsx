@@ -927,9 +927,15 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
                                                 <div>
                                                     <div style={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Estimate</div>
-                                                    <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#52525b' }}>
-                                                        {request.amount.toFixed(2)} <span style={{ color: '#a1a1aa' }}>{currency}</span>
-                                                    </div>
+                                                    {request.category === 'CERTIFICATION' && request.certificate && request.certificate.fixedCost > 300 ? (
+                                                        <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#52525b' }}>
+                                                            Refund: 300 {currency} — You pay {request.certificate.fixedCost - 300} {currency} yourself
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#52525b' }}>
+                                                            {request.amount.toFixed(2)} <span style={{ color: '#a1a1aa' }}>{currency}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <div style={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Total Amount</div>

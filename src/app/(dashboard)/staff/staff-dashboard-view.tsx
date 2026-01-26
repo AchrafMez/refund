@@ -312,7 +312,6 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const queryClient = useQueryClient()
     const [isPending, startTransition] = useTransition()
     const [showPreview, setShowPreview] = useState(false)
-    const [previewError, setPreviewError] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
     const [showApproveDialog, setShowApproveDialog] = useState(false)
     const [showRequestMoreDialog, setShowRequestMoreDialog] = useState(false)
@@ -343,7 +342,6 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
         setShowPreview(!showPreview)
         if (!showPreview) {
             if (!hasViewedReceipt) setHasViewedReceipt(true)
-            setPreviewError(false)
         }
     }
 
@@ -546,9 +544,9 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
             doc.setTextColor(0, 0, 0)
             doc.text('Amount:', margin + 5, yPos + 12)
 
-            // Use totalAmount if available, otherwise estimate. Show USD for certifications estimate, DH otherwise
+            // Use totalAmount if available, otherwise estimate. Show USD for certifications, DH otherwise
             const displayAmount = (request.totalAmount && request.totalAmount > 0) ? request.totalAmount : request.amountEst
-            const displayCurrency = (request.totalAmount && request.totalAmount > 0) ? 'DH' : (request.type === 'CERTIFICATION' ? 'USD' : 'DH')
+            const displayCurrency = request.type === 'CERTIFICATION' ? 'USD' : 'DH'
             doc.setFontSize(14)
             doc.text(`${displayAmount.toFixed(2)} ${displayCurrency}`, pageWidth - margin - 5, yPos + 12, { align: 'right' })
 
@@ -850,7 +848,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 ? request.totalAmount.toFixed(2)
                                 : request.amountEst.toFixed(2)
                             } <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>
-                                {(request.totalAmount && request.totalAmount > 0) ? 'DH' : (request.type === 'CERTIFICATION' ? 'USD' : 'DH')}
+                                {request.type === 'CERTIFICATION' ? 'USD' : 'DH'}
                             </span>
                             {(!request.totalAmount || request.totalAmount === 0) && (
                                 <span style={{ color: '#a1a1aa', fontSize: '0.6875rem', fontWeight: 400, marginLeft: '0.375rem' }}>(estimated)</span>
