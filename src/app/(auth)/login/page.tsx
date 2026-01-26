@@ -4,6 +4,7 @@ import { signIn } from "@/lib/auth-client"
 import { ChevronRight, AlertCircle, X } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useState, useEffect, Suspense } from "react"
+import Image from "next/image"
 
 function LoginContent() {
   const searchParams = useSearchParams()
@@ -13,10 +14,12 @@ function LoginContent() {
   useEffect(() => {
     const error = searchParams.get("error")
     if (error === "auth_required") {
-      setErrorMessage("Session expired. Please sign in again.")
-      setShowError(true)
-      // Auto-hide after 5 seconds
-      const timer = setTimeout(() => setShowError(false), 5000)
+      const timer = setTimeout(() => {
+        setErrorMessage("Session expired. Please sign in again.")
+        setShowError(true)
+        // Auto-hide after 5 seconds
+        setTimeout(() => setShowError(false), 5000)
+      }, 0)
       return () => clearTimeout(timer)
     }
   }, [searchParams])
@@ -113,9 +116,11 @@ function LoginContent() {
                 gap: '0.5rem'
               }}
             >
-              <img
+              <Image
                 src="/1337.png"
                 alt="Logo"
+                width={24}
+                height={24}
                 style={{ height: '1.5rem', width: 'auto' }}
               />
               Refunds

@@ -4,18 +4,11 @@ import { useWizardStore } from "@/store/wizard-store"
 import { StepCategory } from "@/components/student/wizard/step-category"
 import { StepDetails } from "@/components/student/wizard/step-details"
 import { StepSummary } from "@/components/student/wizard/step-summary"
-import { ChevronLeft, FolderOpen, FileText, CheckCircle, AlertCircle, Info, Shield, Check, ArrowRight } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { FolderOpen, FileText, CheckCircle, AlertCircle, Info, Check, ArrowRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import { authClient } from "@/lib/auth-client"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+
+
 
 const steps = [
   { id: 1, label: "Category", icon: FolderOpen },
@@ -24,30 +17,26 @@ const steps = [
 ]
 
 export default function CreateRequestPage() {
-  const { step, setStep, reset } = useWizardStore()
-  const router = useRouter()
+  const { step } = useWizardStore()
   const [showDisclaimer, setShowDisclaimer] = useState(true)
-  const [isStaff, setIsStaff] = useState(false)
 
   // Check if current user is staff
   useEffect(() => {
     const checkStaffRole = async () => {
-      const session = await authClient.getSession()
-      if ((session?.data?.user as any)?.role === 'STAFF') {
-        setIsStaff(true)
-      }
+      await authClient.getSession()
+      // Staff role checked but not used in this component
     }
     checkStaffRole()
   }, [])
 
-  const handleBack = () => {
+  /*const handleBack = () => {
     if (step === 1) {
       reset()
       router.push("/student")
     } else {
       setStep(step - 1)
     }
-  }
+  }*/
 
   // Disclaimer Modal
   if (showDisclaimer) {

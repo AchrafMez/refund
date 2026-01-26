@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Plus, Loader2, RefreshCcw, Pause, Trash2, AlertTriangle, CheckCircle2, Users, Calendar, ChevronRight } from "lucide-react"
+import { Plus, Loader2, RefreshCcw, Pause, Trash2, AlertTriangle, CheckCircle2, Users } from "lucide-react"
 import { 
   getCertificates, 
   createCertificate, 
@@ -709,7 +709,7 @@ export function CertificateManagementView() {
                         </span>
                       </div>
                       <p style={{ fontSize: '0.8125rem', color: '#92400e', margin: 0 }}>
-                        Deactivating will hide this certificate from future requests but won't affect existing ones.
+                        Deactivating will hide this certificate from future requests but won&apos;t affect existing ones.
                       </p>
                     </div>
 

@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react"
+
 import { getRefunds } from "@/actions/refunds"
 import { HistoryList } from "./history-list"
 
@@ -72,7 +72,7 @@ export default async function HistoryPage() {
       </div>
 
       {/* Request List with Pagination */}
-      <HistoryList initialData={result as any} />
+      <HistoryList initialData={result} />
     </div>
   )
 }

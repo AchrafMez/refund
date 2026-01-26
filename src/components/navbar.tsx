@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
@@ -50,19 +51,24 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
   }, [session])
 
   useEffect(() => {
-    setMounted(true)
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
 
+    const timer = setTimeout(() => setMounted(true), 0)
     checkMobile()
     window.addEventListener('resize', checkMobile)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', checkMobile)
+    }
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   useEffect(() => {
     if (!isMobile) {
-      setMobileMenuOpen(false)
+      const timer = setTimeout(() => setMobileMenuOpen(false), 0)
+      return () => clearTimeout(timer)
     }
   }, [isMobile])
 
@@ -70,8 +76,9 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
     if (session) {
       const hasSeenWelcome = localStorage.getItem('refundme-welcome-seen')
       if (!hasSeenWelcome) {
-        setAboutOpen(true)
+        const timer = setTimeout(() => setAboutOpen(true), 0)
         localStorage.setItem('refundme-welcome-seen', 'true')
+        return () => clearTimeout(timer)
       }
     }
   }, [session])
@@ -150,9 +157,11 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                 gap: '0.4rem'
               }}
             >
-              <img 
+              <Image 
                 src="/1337.png" 
                 alt="Logo" 
+                width={20}
+                height={20}
                 style={{ height: '1.25rem', width: 'auto' }} 
               />
               Refunds
@@ -628,10 +637,12 @@ export function Navbar({ initialRole }: { initialRole: string | null }) {
                   gap: '0.5rem'
                 }}
               >
-                <img 
+                <Image 
                   src="/1337.png" 
                   alt="Logo" 
-                  style={{ height: '1.25rem', width: 'auto' }} 
+                  width={24}
+                  height={24} 
+                  style={{ height: '1.5rem', width: 'auto' }} 
                 />
                 Refunds
               </DialogTitle>

@@ -17,7 +17,7 @@ const getFirstDayOfMonth = (date: Date) => {
 // --- Custom Calendar Component ---
 interface CustomCalendarProps {
   value: Date | { start: Date | null; end: Date | null } | null
-  onChange: (val: any) => void
+  onChange: (val: Date | { start: Date | null; end: Date | null } | null) => void
   onClose?: () => void
   mode?: "single" | "range"
 }
@@ -248,11 +248,11 @@ export function CustomCalendar({ value, onChange, onClose, mode = "range" }: Cus
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selected</span>
             <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#3f3f46', marginTop: '0.125rem' }}>
-              {(value as any).start ? formatDate((value as any).start) : "Start"}
-              {(value as any).start && (value as any).end ? ` – ${formatDate((value as any).end)}` : ""}
+              {(value as { start: Date | null; end: Date | null }).start ? formatDate((value as { start: Date | null; end: Date | null }).start!) : "Start"}
+              {(value as { start: Date | null; end: Date | null }).start && (value as { start: Date | null; end: Date | null }).end ? ` – ${formatDate((value as { start: Date | null; end: Date | null }).end!)}` : ""}
             </span>
           </div>
-          {(value as any).start && (value as any).end && onClose && (
+          {(value as { start: Date | null; end: Date | null }).start && (value as { start: Date | null; end: Date | null }).end && onClose && (
             <button
               type="button"
               onClick={onClose}

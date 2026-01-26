@@ -50,7 +50,7 @@ export function handleActionError(error: unknown, context?: string): never {
 /**
  * Wrap an async action with safe error handling
  */
-export function withSafeErrors<T extends (...args: any[]) => Promise<any>>(
+export function withSafeErrors<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   context?: string
 ): T {

@@ -21,7 +21,7 @@ export default async function StaffDashboard() {
         </p>
       </div>
 
-      <StaffDashboardView initialData={initialData as any} initialCounts={tabCounts} />
+      <StaffDashboardView initialData={initialData} initialCounts={tabCounts} />
     </div>
   )
 }

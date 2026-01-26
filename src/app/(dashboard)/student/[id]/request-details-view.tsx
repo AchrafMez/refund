@@ -1,15 +1,14 @@
 "use client"
 
 import { useRef, useState, useTransition } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { submitReceipt, getRefundRequestById, updateRefundStatus, rejectReceipt, deleteRefundRequest } from "@/actions/refunds"
+import { getRefundRequestById, updateRefundStatus, rejectReceipt, deleteRefundRequest } from "@/actions/refunds"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { StatusBadge, RequestStatus } from "@/components/status-badge"
 import { MultiReceiptUpload } from "@/components/student/multi-receipt-upload"
 import { ReceiptList } from "@/components/receipt-list"
-import { ChevronLeft, CalendarDays, CheckCircle2, Clock, FileText, CreditCard, CircleDot, Download, XCircle, Plus, Loader2, Trash2 } from "lucide-react"
+import { CheckCircle2, FileText, Download, XCircle, Plus, Loader2, Trash2 } from "lucide-react"
 import { AuditHistory } from "@/components/staff/audit-history"
 
 interface Receipt {
@@ -45,59 +44,6 @@ interface RequestDetailsViewProps {
         } | null
     }
     isStaff?: boolean
-}
-
-// Timeline step configuration
-// Timeline step configuration
-const getTimelineSteps = (status: RequestStatus, createdDate: string) => {
-    const steps = [
-        {
-            id: 'created',
-            label: 'Request Created',
-            description: 'You submitted the expense estimate.',
-            date: createdDate,
-            icon: FileText,
-            completed: true,
-            current: status === 'ESTIMATED'
-        },
-        {
-            id: 'approved',
-            label: 'Approved/Rejected',
-            description: 'Staff reviewed your request.',
-            date: null,
-            icon: CheckCircle2,
-            completed: ['DECLINED', 'PENDING_RECEIPTS', 'VERIFIED_READY', 'PAID', 'REJECTED'].includes(status),
-            current: status === 'PENDING_RECEIPTS'
-        },
-        {
-            id: 'receipt',
-            label: 'Receipt Submitted',
-            description: 'Receipt uploaded for verification.',
-            date: null,
-            icon: FileText,
-            completed: ['VERIFIED_READY', 'PAID'].includes(status),
-            current: false
-        },
-        {
-            id: 'review',
-            label: 'In Review',
-            description: 'Receipt is being verified.',
-            date: null,
-            icon: Clock,
-            completed: ['PAID'].includes(status),
-            current: status === 'VERIFIED_READY'
-        },
-        {
-            id: 'paid',
-            label: 'Payment Complete',
-            description: 'Funds have been transferred.',
-            date: null,
-            icon: CreditCard,
-            completed: status === 'PAID',
-            current: false
-        }
-    ]
-    return steps
 }
 
 export function RequestDetailsView({ request: initialRequest, isStaff = false }: RequestDetailsViewProps) {
@@ -136,7 +82,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                 category: updated.type,
                 description: updated.description,
                 receiptUrl: updated.receipts?.[0]?.url || null,
-                receipts: (updated.receipts || []).map((r: any) => ({
+                receipts: (updated.receipts || []).map((r: { id: string; url: string; amount: number; createdAt: Date | string }) => ({
                     id: r.id,
                     url: r.url,
                     amount: r.amount,
@@ -151,16 +97,13 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
 
     const status = request.status as RequestStatus
     const receipts = request.receipts || []
-    // Receipt total in DH (staff-entered amounts) - starts at 0 until staff sets amounts
-    const receiptTotalDH = receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
-    const isReceiptType = receipts.length > 0 || status === 'VERIFIED_READY' || status === 'PENDING_RECEIPTS'
+    // const totalAmount = request.totalAmount || receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
 
     const handleUploadComplete = () => {
         queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
         queryClient.invalidateQueries({ queryKey: ["auditLogs", request.id] })
     }
 
-    const timelineSteps = getTimelineSteps(status, request.date)
 
     // Staff action handlers
     const handleRejectReceipt = () => {
@@ -519,7 +462,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
             doc.setFontSize(8)
             doc.setTextColor(100, 100, 100)
             doc.text('1337 Refund Management System', margin, pageHeight - 10)
-            const totalPages = (doc as any).internal.getNumberOfPages()
+            const totalPages = (doc as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
             doc.text(`Page 1${totalPages > 1 ? ` of ${totalPages}` : ''} • Generated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
 
             // Save the PDF

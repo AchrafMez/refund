@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { FileText, Image, Save, Loader2, ExternalLink } from 'lucide-react'
 import { updateReceiptAmount } from '@/actions/refunds'
 import { useRouter } from 'next/navigation'
+import NextImage from 'next/image'
 
 interface Receipt {
   id: string
@@ -15,11 +16,10 @@ interface Receipt {
 interface ReceiptListProps {
   receipts: Receipt[]
   isStaff?: boolean
-  requestId: string
   currency?: string
 }
 
-export function ReceiptList({ receipts, isStaff = false, requestId, currency = 'DH' }: ReceiptListProps) {
+export function ReceiptList({ receipts, isStaff = false }: ReceiptListProps) {
   const router = useRouter()
 
   if (receipts.length === 0) {
@@ -49,7 +49,6 @@ export function ReceiptList({ receipts, isStaff = false, requestId, currency = '
           key={receipt.id}
           receipt={receipt}
           isStaff={isStaff}
-          currency={currency}
           onUpdate={() => router.refresh()}
         />
       ))}
@@ -60,12 +59,10 @@ export function ReceiptList({ receipts, isStaff = false, requestId, currency = '
 function ReceiptItem({
   receipt,
   isStaff,
-  currency,
   onUpdate
 }: {
   receipt: Receipt
   isStaff: boolean
-  currency: string
   onUpdate: () => void
 }) {
   const [amount, setAmount] = useState(receipt.amount.toString())
@@ -121,15 +118,17 @@ function ReceiptItem({
           }}
         >
           {isImage ? (
-            <img
+            <NextImage
               src={receipt.url}
               alt="Receipt"
+              width={40}
+              height={40}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : isPdf ? (
             <FileText style={{ width: '1.25rem', height: '1.25rem', color: '#dc2626' }} />
           ) : (
-            <Image style={{ width: '1.25rem', height: '1.25rem', color: '#71717a' }} />
+            <Image style={{ width: '1.25rem', height: '1.25rem', color: '#71717a' }} aria-label="File icon" />
           )}
         </a>
 

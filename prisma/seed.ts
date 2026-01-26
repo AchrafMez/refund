@@ -27,7 +27,7 @@ async function main() {
   ];
 
   for (const cert of certifications) {
-    const upsertedCert = await prisma.certificateCatalog.upsert({
+    await prisma.certificateCatalog.upsert({
       where: { id: "temp-id-check" }, // We don't have a unique name constraint yet, so we'll just create or skip based on check below
       update: {},
       create: cert,

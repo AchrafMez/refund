@@ -60,7 +60,7 @@ function createAuthInstance() {
 
             redirectURI: process.env.REDIRECT_URL,
 
-            mapProfileToUser: async (profile: any) => {
+            mapProfileToUser: async (profile: { "staff?": boolean; usual_full_name?: string; displayname?: string; login?: string; [key: string]: unknown }) => {
               const isStaff =
                 profile["staff?"] === true;
 

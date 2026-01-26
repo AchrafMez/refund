@@ -5,7 +5,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Banknote,
-  UploadCloud
+  UploadCloud,
+  LucideIcon
 } from "lucide-react"
 
 export type RequestStatus =
@@ -20,7 +21,7 @@ interface StatusBadgeProps {
   status: RequestStatus
 }
 
-const badgeContent: Record<RequestStatus, { icon: any; label: string }> = {
+const badgeContent: Record<RequestStatus, { icon: LucideIcon; label: string }> = {
   ESTIMATED: { icon: Loader2, label: "Estimate" },
   DECLINED: { icon: AlertCircle, label: "Declined" },
   PENDING_RECEIPTS: { icon: UploadCloud, label: "Needs Receipts" },

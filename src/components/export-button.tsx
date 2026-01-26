@@ -157,8 +157,8 @@ export function ExportButton({ onExport, disabled }: ExportButtonProps) {
             },
             margin: { left: margin, right: margin },
             didDrawPage: () => {
-                const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
-                const totalPages = (doc as any).internal.getNumberOfPages()
+                const pageNum = (doc as { internal: { getCurrentPageInfo: () => { pageNumber: number } } }).internal.getCurrentPageInfo().pageNumber
+                const totalPages = (doc as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
 
                 doc.setFont('helvetica', 'normal')
                 doc.setFontSize(8)
@@ -169,7 +169,7 @@ export function ExportButton({ onExport, disabled }: ExportButtonProps) {
             }
         })
 
-        const finalY = (doc as any).lastAutoTable.finalY || yPos + 50
+        const finalY = (doc as { lastAutoTable: { finalY?: number } }).lastAutoTable.finalY || yPos + 50
 
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(10)

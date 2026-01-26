@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Bell, Check, CheckCheck, FileText, AlertCircle, CreditCard, X, Upload, Trash2 } from "lucide-react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Bell, Check, CheckCheck, FileText, AlertCircle, CreditCard, Upload, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, clearAllNotifications } from "@/actions/notifications"
@@ -40,14 +40,27 @@ export function NotificationBell() {
     })
 
     useEffect(() => {
-        setMounted(true)
+        const timer = setTimeout(() => {
+            setMounted(true)
+        }, 0)
+        
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768)
         }
         checkMobile()
         window.addEventListener('resize', checkMobile)
-        return () => window.removeEventListener('resize', checkMobile)
+        return () => {
+            clearTimeout(timer)
+            window.removeEventListener('resize', checkMobile)
+        }
     }, [])
+
+    const handleMarkAllAsRead = useCallback(async () => {
+        await markAllAsRead()
+        // Invalidate queries to refetch updated data
+        queryClient.invalidateQueries({ queryKey: ["notifications"] })
+        queryClient.invalidateQueries({ queryKey: ["notificationCount"] })
+    }, [queryClient])
 
     useEffect(() => {
         if (isOpen && notifications.length > 0) {
@@ -61,7 +74,7 @@ export function NotificationBell() {
                 return () => clearTimeout(timer)
             }
         }
-    }, [isOpen, notifications])
+    }, [isOpen, notifications, handleMarkAllAsRead])
 
 
     useEffect(() => {
@@ -85,20 +98,14 @@ export function NotificationBell() {
         setIsOpen(false)
 
         if (notification.type === "NEW_REQUEST") {
-            window.location.href = "/staff?tab=Validation"
+            router.push("/staff?tab=Validation")
         } else if (notification.type === "RECEIPT_UPLOADED") {
-            window.location.href = "/staff?tab=Processing"
+            router.push("/staff?tab=Processing")
         } else if (notification.refundId) {
-            window.location.href = `/student/${notification.refundId}`
+            router.push(`/student/${notification.refundId}`)
         }
     }
 
-    const handleMarkAllAsRead = async () => {
-        await markAllAsRead()
-        // Invalidate queries to refetch updated data
-        queryClient.invalidateQueries({ queryKey: ["notifications"] })
-        queryClient.invalidateQueries({ queryKey: ["notificationCount"] })
-    }
 
     const handleClearAll = async () => {
         await clearAllNotifications()
