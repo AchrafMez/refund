@@ -25,16 +25,26 @@ app.prepare().then(() => {
             }
 
             if (parsedUrl.pathname?.startsWith('/uploads/')) {
-                const filePath = path.join(process.cwd(), 'public', parsedUrl.pathname)
-                if (fs.existsSync(filePath)) {
-                    const ext = path.extname(filePath).toLowerCase()
+                const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
+                const requestedPath = path.join(process.cwd(), 'public', parsedUrl.pathname)
+                const relative = path.relative(uploadsDir, requestedPath)
+                
+                // Prevent path traversal: ensure path is inside uploadsDir and not pointing to parent directories
+                if (relative.startsWith('..') || path.isAbsolute(relative)) {
+                    res.statusCode = 403
+                    res.end("Forbidden")
+                    return
+                }
+
+                if (fs.existsSync(requestedPath)) {
+                    const ext = path.extname(requestedPath).toLowerCase()
                     const mimeTypes: Record<string, string> = {
                         '.jpg': 'image/jpeg',
                         '.jpeg': 'image/jpeg',
                         '.png': 'image/png',
                     }
                     res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream')
-                    fs.createReadStream(filePath).pipe(res)
+                    fs.createReadStream(requestedPath).pipe(res)
                     return
                 }
             }

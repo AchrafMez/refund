@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { apiLogger } from "@/lib/logger";
 import { getStorageProvider } from "@/lib/storage";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 // Configuration
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -17,6 +19,14 @@ const ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf"];
 
 export async function POST(req: NextRequest) {
     try {
+        const session = await auth.api.getSession({
+            headers: await headers()
+        })
+
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const formData = await req.formData();
         const file = formData.get("file") as File;
 

@@ -620,6 +620,11 @@ export async function submitReceipt(id: string, receiptUrl: string, amount: numb
         throw new Error("Invalid receipt URL")
     }
 
+    // Validate URL protocol to prevent XSS (javascript:)
+    if (!receiptUrl.startsWith('http://') && !receiptUrl.startsWith('https://') && !receiptUrl.startsWith('/')) {
+        throw new Error("Invalid receipt URL protocol")
+    }
+
     const request = await prisma.refundRequest.findUnique({
         where: { id },
         select: { title: true, userId: true }
