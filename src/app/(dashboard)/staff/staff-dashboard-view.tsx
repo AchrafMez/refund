@@ -376,6 +376,9 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     }
 
     const handleApprove = () => {
+        // Update finalAmount when opening dialog - use receipt total if staff has set amounts, otherwise use estimate
+        const defaultAmount = receiptTotal > 0 ? receiptTotal : request.amountEst
+        setFinalAmount(defaultAmount.toString())
         setShowApproveDialog(true)
     }
 
@@ -543,8 +546,11 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
             doc.setTextColor(0, 0, 0)
             doc.text('Amount:', margin + 5, yPos + 12)
 
+            // Use totalAmount if available, otherwise estimate. Show USD for certifications estimate, DH otherwise
+            const displayAmount = (request.totalAmount && request.totalAmount > 0) ? request.totalAmount : request.amountEst
+            const displayCurrency = (request.totalAmount && request.totalAmount > 0) ? 'DH' : (request.type === 'CERTIFICATION' ? 'USD' : 'DH')
             doc.setFontSize(14)
-            doc.text(`${request.amountEst.toFixed(2)} DH`, pageWidth - margin - 5, yPos + 12, { align: 'right' })
+            doc.text(`${displayAmount.toFixed(2)} ${displayCurrency}`, pageWidth - margin - 5, yPos + 12, { align: 'right' })
 
             yPos += 30
 
@@ -670,7 +676,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
             doc.setFontSize(8)
             doc.setTextColor(100, 100, 100)
             doc.text('1337 Refund Management System', margin, pageHeight - 10)
-            const totalPages = (doc as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
+            const totalPages = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
             doc.text(`Page 1${totalPages > 1 ? ` of ${totalPages}` : ''} • Generated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
 
             // Save the PDF
@@ -728,6 +734,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 alt={request.user.name || 'User'}
                                 width={32}
                                 height={32}
+                                unoptimized
                                 style={{
                                     width: (mounted && isMobile) ? '1.75rem' : '2rem',
                                     height: (mounted && isMobile) ? '1.75rem' : '2rem',
@@ -843,7 +850,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 ? request.totalAmount.toFixed(2)
                                 : request.amountEst.toFixed(2)
                             } <span style={{ color: '#71717a', fontSize: (mounted && isMobile) ? '0.8125rem' : '0.875rem', fontWeight: 500 }}>
-                                {(request.totalAmount && request.totalAmount > 0) ? 'DH' : (request.certificate?.currency || 'DH')}
+                                {(request.totalAmount && request.totalAmount > 0) ? 'DH' : (request.type === 'CERTIFICATION' ? 'USD' : 'DH')}
                             </span>
                             {(!request.totalAmount || request.totalAmount === 0) && (
                                 <span style={{ color: '#a1a1aa', fontSize: '0.6875rem', fontWeight: 400, marginLeft: '0.375rem' }}>(estimated)</span>
@@ -1047,6 +1054,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                                 alt={`Receipt ${index + 1}`}
                                                 width={400}
                                                 height={300}
+                                                unoptimized
                                                 style={{
                                                     width: '100%',
                                                     maxHeight: '300px',
@@ -1314,7 +1322,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                 {request.title}
                             </p>
                             <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
-                                {request.user?.name || request.user?.email} • Estimated: {request.amountEst.toFixed(2)} {request.certificate?.currency || 'DH'}
+                                {request.user?.name || request.user?.email} • Estimated: {request.amountEst.toFixed(2)} {request.type === 'CERTIFICATION' ? 'USD' : 'DH'}
                                 {receiptTotal > 0 && (
                                     <> • Receipt Total: <span style={{ fontWeight: 600, color: '#18181b' }}>{receiptTotal.toFixed(2)}</span> DH</>
                                 )}
@@ -1331,7 +1339,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
                                     color: '#18181b',
                                     marginBottom: '0.375rem'
                                 }}>
-                                    Final Refund Amount ({request.certificate?.currency || 'Dhs'})
+                                    Final Refund Amount (DH)
                                 </label>
                                 <input
                                     type="number"

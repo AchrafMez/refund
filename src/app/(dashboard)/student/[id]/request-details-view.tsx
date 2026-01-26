@@ -122,7 +122,9 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     }
 
     const handleVerifyPay = () => {
-        setFinalAmount(receiptTotalDH.toString())
+        // Use receipt total if staff has set amounts, otherwise use estimate
+        const defaultAmount = receiptTotalDH > 0 ? receiptTotalDH : request.amount
+        setFinalAmount(defaultAmount.toString())
         setShowApproveDialog(true)
     }
 
@@ -462,7 +464,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
             doc.setFontSize(8)
             doc.setTextColor(100, 100, 100)
             doc.text('1337 Refund Management System', margin, pageHeight - 10)
-            const totalPages = (doc as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
+            const totalPages = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
             doc.text(`Page 1${totalPages > 1 ? ` of ${totalPages}` : ''} • Generated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
 
             // Save the PDF
@@ -870,7 +872,6 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     <ReceiptList
                                         receipts={receipts.map((r: Receipt) => ({ ...r, createdAt: new Date(r.createdAt) }))}
                                         isStaff={isStaff}
-                                        requestId={request.id}
                                         currency={request.certificate?.currency || 'DH'}
                                     />
                                 </div>
@@ -899,7 +900,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             </div>
                             <div style={{ padding: '1.5rem' }}>
                                 {(() => {
-                                    const currency = request.certificate?.currency || 'DH';
+                                    const currency = request.certificate?.currency || (request.category === 'CERTIFICATION' ? 'USD' : 'DH');
                                     return (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                             {/* Row 1: Reference & Category */}
@@ -1271,7 +1272,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                 {request.title}
                             </p>
                             <p style={{ color: '#71717a', fontSize: '0.8125rem' }}>
-                                {request.user?.name || request.user?.email} • Estimated: {request.amount.toFixed(2)} {request.certificate?.currency || 'DH'}
+                                {request.user?.name || request.user?.email} • Estimated: {request.amount.toFixed(2)} {request.certificate?.currency || (request.category === 'CERTIFICATION' ? 'USD' : 'DH')}
                                 {receiptTotalDH > 0 && (
                                     <> • Receipt Total: <span style={{ fontWeight: 600, color: '#18181b' }}>{receiptTotalDH.toFixed(2)}</span> DH</>
                                 )}

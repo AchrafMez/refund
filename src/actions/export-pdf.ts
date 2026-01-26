@@ -74,7 +74,8 @@ export async function getExportData(
     const items: ExportDataItem[] = filteredRequests.map(r => ({
         fullName: r.user.name || r.user.email,
         refundType: formatRefundType(r.type),
-        amount: r.amountEst || 0,
+        // Use totalAmount (final paid amount) if available, otherwise fall back to estimate
+        amount: r.totalAmount ?? r.amountEst ?? 0,
         dateCreated: r.createdAt,
         isRefunded: r.status === 'PAID'
     }))

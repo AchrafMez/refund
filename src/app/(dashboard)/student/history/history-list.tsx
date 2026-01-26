@@ -1,23 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query" // Added import
+import { useQuery } from "@tanstack/react-query"
 import { FileText } from "lucide-react"
-import { getRefunds } from "@/actions/refunds"
+import { getRefunds, RefundRequestWithReceipts } from "@/actions/refunds"
 import { HistoryItem } from "./history-item"
 import { Pagination } from "@/components/ui/pagination"
 import { PaginatedResult, DEFAULT_PAGE_SIZE } from "@/types/pagination"
 
-type RefundRequest = {
-  id: string
-  title: string
-  amountEst: number
-  status: string
-  type: string
-  createdAt: Date
-  description: string | null
-  receiptUrl: string | null
-}
+type RefundRequest = RefundRequestWithReceipts
 
 interface HistoryListProps {
   initialData: PaginatedResult<RefundRequest>
@@ -31,12 +22,11 @@ export function HistoryList({ initialData }: HistoryListProps) {
   const { data, isLoading, isPlaceholderData } = useQuery({
     queryKey: ['student-history', { page, pageSize }],
     queryFn: () => getRefunds({ page, pageSize }),
-    placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
+    placeholderData: (previousData) => previousData,
     initialData: page === 1 ? initialData : undefined
   })
 
-  // Cast back to expected type
-  const result = data as PaginatedResult<RefundRequest> || initialData
+  const result = data || initialData
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage)

@@ -60,17 +60,17 @@ function createAuthInstance() {
 
             redirectURI: process.env.REDIRECT_URL,
 
-            mapProfileToUser: async (profile: { "staff?": boolean; usual_full_name?: string; displayname?: string; login?: string; [key: string]: unknown }) => {
-              const isStaff =
-                profile["staff?"] === true;
+            mapProfileToUser: async (profile: Record<string, unknown>) => {
+              const profileData = profile as { "staff?": boolean; usual_full_name?: string; displayname?: string; login?: string; email?: string; image?: { link?: string } };
+              const isStaff = profileData["staff?"] === true;
 
               return {
                 name:
-                  profile.usual_full_name ||
-                  profile.displayname ||
-                  profile.login,
-                email: profile.email,
-                image: profile.image?.link ?? null,
+                  profileData.usual_full_name ||
+                  profileData.displayname ||
+                  profileData.login,
+                email: profileData.email,
+                image: profileData.image?.link ?? null,
                 role: isStaff ? "STAFF" : "STUDENT",
               };
             },

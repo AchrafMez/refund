@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { AuditAction } from "@prisma/client";
+import { AuditAction, Prisma } from "@prisma/client";
 import { auditLogger } from "./logger";
 
 export async function logActivity(
@@ -29,7 +29,7 @@ export async function logActivity(
         userId,
         action,
         entityId,
-        details: details ?? {},
+        details: (details ?? {}) as Prisma.InputJsonValue,
       },
     });
   } catch (error) {

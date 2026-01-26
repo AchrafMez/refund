@@ -5,11 +5,6 @@ import { ClientStudentDashboard } from "./client-student-dashboard"
 export default async function StudentDashboard() {
   const result = await getRefunds({ page: 1, pageSize: 50 })
 
-  const activeRequests = result.data.filter(r => r.status !== "PAID" && r.status !== "DECLINED")
-
-  const totalActive = activeRequests.reduce((sum, req) => sum + req.amountEst, 0)
-  const pendingAction = activeRequests.filter(r => r.status === "PENDING_RECEIPTS" || r.status === "ESTIMATED").length
-
   return (
     <div className="space-y-8">
       <div>
@@ -21,11 +16,7 @@ export default async function StudentDashboard() {
         </p>
       </div>
 
-      <ClientStudentDashboard
-        initialData={result.data}
-        initialTotalActive={totalActive}
-        initialPendingAction={pendingAction}
-      />
+      <ClientStudentDashboard initialData={result.data} />
     </div>
   )
 }

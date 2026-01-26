@@ -123,6 +123,7 @@ function ReceiptItem({
               alt="Receipt"
               width={40}
               height={40}
+              unoptimized
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : isPdf ? (

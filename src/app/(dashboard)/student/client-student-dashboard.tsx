@@ -5,21 +5,9 @@ import { PlusCircle } from "lucide-react"
 import Link from "next/link"
 import { ActiveRequestCard } from "@/components/student/active-request-card"
 import { StatsRow } from "@/components/student/stats-cards"
-import { getRefunds } from "@/actions/refunds"
+import { getRefunds, RefundRequestWithReceipts } from "@/actions/refunds"
 
-type RefundRequest = {
-  id: string;
-  status: string;
-  title: string;
-  description: string | null;
-  amountEst: number;
-  amountFinal: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  type: string;
-  user: { name: string | null; email: string };
-  receipts: Array<{ id: string; url: string; amount: number }>;
-}
+type RefundRequest = RefundRequestWithReceipts
 
 interface ClientStudentDashboardProps {
     initialData: RefundRequest[]
@@ -31,7 +19,7 @@ export function ClientStudentDashboard({
     const { data: result } = useQuery({
         queryKey: ["refunds", { page: 1, pageSize: 50 }],
         queryFn: () => getRefunds({ page: 1, pageSize: 50 }),
-        initialData: { data: initialData, pagination: { page: 1, pageSize: 50, totalItems: initialData.length, totalPages: 1 } },
+        initialData: { data: initialData, pagination: { page: 1, pageSize: 50, totalItems: initialData.length, totalPages: 1, hasNext: false, hasPrev: false } },
         refetchInterval: 5000,
     })
 
@@ -82,6 +70,7 @@ export function ClientStudentDashboard({
                                     amount={req.amountEst}
                                     date={new Date(req.createdAt).toISOString()}
                                     status={req.status as 'ESTIMATED' | 'DECLINED' | 'PENDING_RECEIPTS' | 'VERIFIED_READY' | 'PAID' | 'REJECTED'}
+                                    type={req.type}
                                     receipts={req.receipts}
                                     totalAmount={evaluatedReceiptTotal > 0 ? evaluatedReceiptTotal : undefined}
                                     receiptsCount={req.receipts.length}

@@ -224,6 +224,7 @@ export function AuditHistory({ refundId, isOpen, onToggle }: AuditHistoryProps) 
                                                         alt={log.user.name || "User"}
                                                         width={24}
                                                         height={24}
+                                                        unoptimized
                                                         style={{
                                                             width: "1.25rem",
                                                             height: "1.25rem",

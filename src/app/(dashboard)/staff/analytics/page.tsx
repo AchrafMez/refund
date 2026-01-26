@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
       const data = await getAnalyticsData(dateRange.start, dateRange.end, selectedTypes)
       return {
         stats: data.stats,
-        timeline: data.timeline.map((item: { submittedAt: string; completedAt?: string; [key: string]: unknown }) => ({
+        timeline: data.timeline.map((item) => ({
           ...item,
           submittedAt: new Date(item.submittedAt),
           completedAt: item.completedAt ? new Date(item.completedAt) : null
@@ -739,6 +739,7 @@ export default function AnalyticsPage() {
                             alt={item.user} 
                             width={40} 
                             height={40} 
+                            unoptimized
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                           />
                         ) : (

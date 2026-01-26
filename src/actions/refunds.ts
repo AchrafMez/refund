@@ -16,14 +16,21 @@ import {
     getSkip
 } from "@/types/pagination"
 
-type RefundRequest = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>>
+type RefundRequestBase = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>>
 
 type RefundRequestWithUser = Awaited<ReturnType<typeof prisma.refundRequest.findFirst>> & {
     user: { name: string | null; email: string; image: string | null }
     receipts: Receipt[]
     certificate: CertificateCatalog | null
 }
-export async function getRefunds(params?: PaginationParams): Promise<PaginatedResult<NonNullable<RefundRequest>>> {
+
+// Type for getRefunds which includes receipts and certificate
+export type RefundRequestWithReceipts = NonNullable<RefundRequestBase> & {
+    receipts: Receipt[]
+    certificate: CertificateCatalog | null
+}
+
+export async function getRefunds(params?: PaginationParams): Promise<PaginatedResult<RefundRequestWithReceipts>> {
     const session = await auth.api.getSession({
         headers: await headers()
     })
@@ -302,7 +309,7 @@ export async function createEstimate(data: {
             totalAmount: finalTotalAmount,
             type: data.type,
             status,
-            certificateId: data.certificateId,
+            certificateId: data.certificateId && data.certificateId.trim() !== '' ? data.certificateId : null,
             targetDate: data.targetDate,
             departure: data.departure,
             destination: data.destination,
@@ -531,7 +538,7 @@ export async function updateRefundStatus(
         data: {
             status: newStatus,
             ...(newStatus === "DECLINED" && reason ? { staffNote: reason } : {}),
-            ...(newStatus === "PAID" && amountFinal !== undefined ? { amountFinal } : {})
+            ...(newStatus === "PAID" && amountFinal !== undefined ? { amountFinal, totalAmount: amountFinal } : {})
         }
     })
 

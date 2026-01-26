@@ -11,7 +11,7 @@ interface ActiveRequestCardProps {
   date: string
   status: RequestStatus
   receiptsCount?: number
-  currency?: string
+  type?: string
   totalAmount?: number
   receipts?: Array<{ id: string; url: string; amount: number }>
 }
@@ -26,7 +26,7 @@ const statusConfig: Record<RequestStatus, { progress: number; message: string }>
   REJECTED: { progress: 0, message: "Request was rejected." }
 }
 
-export function ActiveRequestCard({ id, title, amount, date, status, receiptsCount = 0, currency = 'DH', totalAmount, receipts = [] }: ActiveRequestCardProps) {
+export function ActiveRequestCard({ id, title, amount, date, status, receiptsCount = 0, type, totalAmount, receipts = [] }: ActiveRequestCardProps) {
   // When PENDING_RECEIPTS but has receipts, show as Receipt Submitted
   const hasReceipts = receiptsCount > 0
   const effectiveStatus = (status === 'PENDING_RECEIPTS' && hasReceipts) ? 'VERIFIED_READY' : status
@@ -35,6 +35,9 @@ export function ActiveRequestCard({ id, title, amount, date, status, receiptsCou
   const receiptsEvaluated = receipts.some(r => r.amount > 0) || (totalAmount && totalAmount > 0)
   const displayAmount = receiptsEvaluated && totalAmount ? totalAmount : amount
   const showEstimated = !receiptsEvaluated
+  // For estimates: show USD for certifications, DH for others
+  // For totalAmount (final): always show DH since refund is paid in DH
+  const currency = showEstimated && type === 'CERTIFICATION' ? 'USD' : 'DH'
   
   // Get config based on effective status, but adjust message for PENDING_RECEIPTS with receipts
   const baseConfig = statusConfig[effectiveStatus]

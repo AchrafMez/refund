@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'cdn.intra.42.fr',
+        pathname: '/**',
       },
     ],
   },

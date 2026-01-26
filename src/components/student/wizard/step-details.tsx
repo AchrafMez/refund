@@ -5,7 +5,7 @@ import Link from "next/link"
 import { getCertificates } from "@/actions/refunds"
 import { authClient } from "@/lib/auth-client"
 import { CustomCalendar } from "@/components/ui/custom-calendar"
-const getTitlePlaceholder = (category: string): string => {
+const getTitlePlaceholder = (category: string | null): string => {
   switch (category) {
     case 'transport':
       return "e.g., Akasec Odyssey, Exhibition Event..."
@@ -17,7 +17,7 @@ const getTitlePlaceholder = (category: string): string => {
       return "Enter a title for your request..."
   }
 }
-const getDescriptionPlaceholder = (category: string): string => {
+const getDescriptionPlaceholder = (category: string | null): string => {
   switch (category) {
     case 'transport':
       return "Describe your travel purpose, event name, dates, and why this trip is necessary for your studies..."
@@ -446,7 +446,9 @@ export function StepDetails() {
                         <CustomCalendar
                           mode="single"
                           value={data.targetDate ? new Date(data.targetDate) : null}
-                          onChange={(date: Date | null) => {
+                          onChange={(val) => {
+                            // For single mode, val is Date | null
+                            const date = val instanceof Date ? val : undefined
                             setData({ targetDate: date })
                             setShowCalendar(false)
                           }}

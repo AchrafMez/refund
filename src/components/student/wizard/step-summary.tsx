@@ -15,7 +15,7 @@ export function StepSummary() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [certificates, setCertificates] = useState<Array<{id: string; name: string; provider: string; fixedCost: number}>>([])
+  const [certificates, setCertificates] = useState<Array<{id: string; name: string; provider: string; fixedCost: number; currency: string}>>([])
   const router = useRouter()
 
   // Fetch user role and certificates on mount
