@@ -71,16 +71,23 @@ export function ClientStudentDashboard({
                             gap: '1rem'
                         }}
                     >
-                        {activeRequests.map((req: RefundRequest) => (
-                            <ActiveRequestCard
-                                key={req.id}
-                                id={req.id}
-                                title={req.title}
-                                amount={req.amountEst}
-                                date={new Date(req.createdAt).toISOString()}
-                                status={req.status as 'ESTIMATED' | 'DECLINED' | 'PENDING_RECEIPTS' | 'VERIFIED_READY' | 'PAID' | 'REJECTED'}
-                            />
-                        ))}
+                        {activeRequests.map((req: RefundRequest) => {
+                            // Calculate total amount from receipts that have been evaluated (amount > 0)
+                            const evaluatedReceiptTotal = req.receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0)
+                            return (
+                                <ActiveRequestCard
+                                    key={req.id}
+                                    id={req.id}
+                                    title={req.title}
+                                    amount={req.amountEst}
+                                    date={new Date(req.createdAt).toISOString()}
+                                    status={req.status as 'ESTIMATED' | 'DECLINED' | 'PENDING_RECEIPTS' | 'VERIFIED_READY' | 'PAID' | 'REJECTED'}
+                                    receipts={req.receipts}
+                                    totalAmount={evaluatedReceiptTotal > 0 ? evaluatedReceiptTotal : undefined}
+                                    receiptsCount={req.receipts.length}
+                                />
+                            )
+                        })}
                     </div>
                 ) : (
                     <div

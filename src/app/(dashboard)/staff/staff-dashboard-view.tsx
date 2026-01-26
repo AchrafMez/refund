@@ -312,6 +312,7 @@ function InboxCard({ request, type }: { request: RefundRequest, type: 'estimate'
     const queryClient = useQueryClient()
     const [isPending, startTransition] = useTransition()
     const [showPreview, setShowPreview] = useState(false)
+    const [previewError, setPreviewError] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
     const [showApproveDialog, setShowApproveDialog] = useState(false)
     const [showRequestMoreDialog, setShowRequestMoreDialog] = useState(false)

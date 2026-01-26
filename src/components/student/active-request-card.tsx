@@ -12,6 +12,8 @@ interface ActiveRequestCardProps {
   status: RequestStatus
   receiptsCount?: number
   currency?: string
+  totalAmount?: number
+  receipts?: Array<{ id: string; url: string; amount: number }>
 }
 
 // Status-based progress configuration
@@ -24,10 +26,15 @@ const statusConfig: Record<RequestStatus, { progress: number; message: string }>
   REJECTED: { progress: 0, message: "Request was rejected." }
 }
 
-export function ActiveRequestCard({ id, title, amount, date, status, receiptsCount = 0, currency = 'DH' }: ActiveRequestCardProps) {
+export function ActiveRequestCard({ id, title, amount, date, status, receiptsCount = 0, currency = 'DH', totalAmount, receipts = [] }: ActiveRequestCardProps) {
   // When PENDING_RECEIPTS but has receipts, show as Receipt Submitted
   const hasReceipts = receiptsCount > 0
   const effectiveStatus = (status === 'PENDING_RECEIPTS' && hasReceipts) ? 'VERIFIED_READY' : status
+  
+  // Calculate if receipts have been evaluated by staff (have amounts > 0)
+  const receiptsEvaluated = receipts.some(r => r.amount > 0) || (totalAmount && totalAmount > 0)
+  const displayAmount = receiptsEvaluated && totalAmount ? totalAmount : amount
+  const showEstimated = !receiptsEvaluated
   
   // Get config based on effective status, but adjust message for PENDING_RECEIPTS with receipts
   const baseConfig = statusConfig[effectiveStatus]
@@ -96,9 +103,14 @@ export function ActiveRequestCard({ id, title, amount, date, status, receiptsCou
         {/* Amount */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', marginBottom: '1.25rem' }}>
           <span style={{ fontSize: '1.5rem', fontWeight: 500, color: '#18181b' }}>
-            {amount.toFixed(2)}
+            {displayAmount.toFixed(2)}
           </span>
           <span style={{ fontSize: '0.875rem', color: '#71717a' }}>{currency}</span>
+          {showEstimated && (
+            <span style={{ fontSize: '0.75rem', color: '#a1a1aa', marginLeft: '0.25rem' }}>
+              (estimated)
+            </span>
+          )}
         </div>
 
         {/* Progress */}

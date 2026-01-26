@@ -97,7 +97,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
 
     const status = request.status as RequestStatus
     const receipts = request.receipts || []
-    // const totalAmount = request.totalAmount || receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
+    const receiptTotalDH = request.totalAmount || receipts.reduce((sum: number, r: Receipt) => sum + r.amount, 0)
 
     const handleUploadComplete = () => {
         queryClient.invalidateQueries({ queryKey: ["refund", request.id] })
