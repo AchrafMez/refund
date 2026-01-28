@@ -5,7 +5,7 @@ echo "Starting Production Environment..."
 
 # Run migrations
 echo "Applying database migrations..."
-npx prisma migrate deploy
+npx prisma@5 migrate deploy
 
 # Start app
 echo "Starting application..."

@@ -13,9 +13,9 @@ export function StepSummary() {
   const { data, setStep, reset } = useWizardStore()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const [certificates, setCertificates] = useState<Array<{id: string; name: string; provider: string; fixedCost: number; currency: string}>>([])
+  const [certificates, setCertificates] = useState<Array<{ id: string; name: string; provider: string; fixedCost: number; currency: string }>>([])
   const router = useRouter()
 
   // Fetch user role and certificates on mount
@@ -42,7 +42,7 @@ export function StepSummary() {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      setUploadedFile(acceptedFiles[0])
+      setUploadedFiles(prev => [...prev, ...acceptedFiles])
     }
   }, [])
 
@@ -52,8 +52,7 @@ export function StepSummary() {
       'image/*': ['.png', '.jpg', '.jpeg', '.gif'],
       'application/pdf': ['.pdf']
     },
-    maxFiles: 1,
-    multiple: false
+    multiple: true
   })
 
   const UploadToLocal = async (file: File): Promise<string | null> => {
@@ -82,12 +81,14 @@ export function StepSummary() {
     setIsSubmitting(true)
 
     try {
-      let receiptUrl: string | undefined
+      let receiptUrls: string[] = []
 
-      // Upload file if provided
-      if (uploadedFile) {
+      // Upload files if provided
+      if (uploadedFiles.length > 0) {
         setIsUploading(true)
-        receiptUrl = (await UploadToLocal(uploadedFile)) || undefined
+        const uploadPromises = uploadedFiles.map(file => UploadToLocal(file))
+        const results = await Promise.all(uploadPromises)
+        receiptUrls = results.filter((url): url is string => url !== null)
         setIsUploading(false)
       }
 
@@ -103,7 +104,7 @@ export function StepSummary() {
         description: data.description,
         amount: parseFloat(data.amount) || 0,
         type: categoryMap[data.category!] || 'OTHER',
-        receiptUrl,
+        receiptUrls,
         // New fields from Step 3
         certificateId: data.certificateId || undefined,
         targetDate: data.targetDate,
@@ -153,8 +154,8 @@ export function StepSummary() {
 
           <div style={{ color: '#71717a' }}>Estimate</div>
           <div style={{ fontWeight: 500, color: '#18181b' }}>
-            {data.category === 'certification' && selectedCert ? 
-              `${selectedCert.fixedCost.toFixed(2)} ${selectedCert.currency}` : 
+            {data.category === 'certification' && selectedCert ?
+              `${selectedCert.fixedCost.toFixed(2)} ${selectedCert.currency}` :
               `DH ${Number(data.amount).toFixed(2)}`
             }
           </div>
@@ -206,60 +207,65 @@ export function StepSummary() {
         }}
       >
         <div style={{ color: '#18181b', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: 500 }}>
-          Attachment <span style={{ color: '#71717a', fontWeight: 400 }}>(optional)</span>
+          Attachments <span style={{ color: '#71717a', fontWeight: 400 }}>(optional)</span>
         </div>
 
-        {uploadedFile ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.75rem',
-              backgroundColor: 'white',
-              border: '1px solid #e4e4e7',
-              borderRadius: '0.5rem'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText style={{ width: '1rem', height: '1rem', color: '#18181b' }} />
-              <span style={{ fontSize: '0.875rem', color: '#18181b' }}>{uploadedFile.name}</span>
-            </div>
-            <button
-              onClick={() => setUploadedFile(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0.25rem'
-              }}
-            >
-              <X style={{ width: '1rem', height: '1rem', color: '#dc2626' }} />
-            </button>
-          </div>
-        ) : (
-          <div
-            {...getRootProps()}
-            style={{
-              padding: '1.5rem',
-              backgroundColor: 'white',
-              border: `2px dashed ${isDragActive ? '#18181b' : '#d4d4d8'}`,
-              borderRadius: '0.5rem',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'border-color 150ms'
-            }}
-          >
-            <input {...getInputProps()} />
-            <Upload style={{ width: '1.5rem', height: '1.5rem', color: '#71717a', margin: '0 auto 0.5rem' }} />
-            <p style={{ fontSize: '0.875rem', color: '#3f3f46' }}>
-              {isDragActive ? 'Drop the file here' : 'Drag & drop or click to upload'}
-            </p>
-            <p style={{ fontSize: '0.75rem', color: '#71717a', marginTop: '0.25rem' }}>
-              PDF, PNG, JPG up to 10MB
-            </p>
+        {uploadedFiles.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+            {uploadedFiles.map((file, index) => (
+              <div
+                key={index}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.75rem',
+                  backgroundColor: 'white',
+                  border: '1px solid #e4e4e7',
+                  borderRadius: '0.5rem'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText style={{ width: '1rem', height: '1rem', color: '#18181b' }} />
+                  <span style={{ fontSize: '0.875rem', color: '#18181b' }}>{file.name}</span>
+                </div>
+                <button
+                  onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== index))}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '0.25rem'
+                  }}
+                >
+                  <X style={{ width: '1rem', height: '1rem', color: '#dc2626' }} />
+                </button>
+              </div>
+            ))}
           </div>
         )}
+
+        <div
+          {...getRootProps()}
+          style={{
+            padding: '1.5rem',
+            backgroundColor: 'white',
+            border: `2px dashed ${isDragActive ? '#18181b' : '#d4d4d8'}`,
+            borderRadius: '0.5rem',
+            textAlign: 'center',
+            cursor: 'pointer',
+            transition: 'border-color 150ms'
+          }}
+        >
+          <input {...getInputProps()} />
+          <Upload style={{ width: '1.5rem', height: '1.5rem', color: '#71717a', margin: '0 auto 0.5rem' }} />
+          <p style={{ fontSize: '0.875rem', color: '#3f3f46' }}>
+            {isDragActive ? 'Drop the files here' : 'Drag & drop or click to upload'}
+          </p>
+          <p style={{ fontSize: '0.75rem', color: '#71717a', marginTop: '0.25rem' }}>
+            PDF, PNG, JPG up to 10MB
+          </p>
+        </div>
       </div>
 
       {/* Certification Warning */}

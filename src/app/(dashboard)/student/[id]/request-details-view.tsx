@@ -349,106 +349,157 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
             // ========================================
             // RECEIPT SECTION (if exists)
             // ========================================
-            if (request.receiptUrl) {
-                const isImage = /\.(jpeg|jpg|png|gif|webp)$/i.test(request.receiptUrl)
+            // ========================================
+            // RECEIPT SECTION (if exists)
+            // ========================================
+            if (request.receipts && request.receipts.length > 0) {
+                // Loop through all receipts
+                for (let i = 0; i < request.receipts.length; i++) {
+                    const receipt = request.receipts[i];
+                    const isImage = /\.(jpeg|jpg|png|gif|webp)$/i.test(receipt.url)
 
-                if (isImage) {
-                    // Add receipt on a new page for proper sizing
-                    doc.addPage()
-                    let receiptY = margin
+                    if (isImage) {
+                        // Add receipt on a new page for proper sizing
+                        doc.addPage()
+                        let receiptY = margin
 
-                    // Header for receipt page
-                    try {
-                        const response = await fetch('/1337.png')
-                        const blob = await response.blob()
-                        const logoBase64 = await new Promise<string>((resolve) => {
-                            const reader = new FileReader()
-                            reader.onloadend = () => resolve(reader.result as string)
-                            reader.readAsDataURL(blob)
-                        })
-                        doc.addImage(logoBase64, 'PNG', margin, receiptY, 30, 8)
-                    } catch {
+                        // Header for receipt page
+                        try {
+                            const response = await fetch('/1337.png')
+                            const blob = await response.blob()
+                            const logoBase64 = await new Promise<string>((resolve) => {
+                                const reader = new FileReader()
+                                reader.onloadend = () => resolve(reader.result as string)
+                                reader.readAsDataURL(blob)
+                            })
+                            doc.addImage(logoBase64, 'PNG', margin, receiptY, 30, 8)
+                        } catch {
+                            doc.setFont('helvetica', 'bold')
+                            doc.setFontSize(20)
+                            doc.setTextColor(0, 0, 0)
+                            doc.text('1337', margin, receiptY + 6)
+                        }
+
                         doc.setFont('helvetica', 'bold')
-                        doc.setFontSize(20)
+                        doc.setFontSize(14)
                         doc.setTextColor(0, 0, 0)
-                        doc.text('1337', margin, receiptY + 6)
-                    }
+                        doc.text(`Receipt Attachment ${i + 1}`, pageWidth - margin, receiptY + 3, { align: 'right' })
 
-                    doc.setFont('helvetica', 'bold')
-                    doc.setFontSize(14)
-                    doc.setTextColor(0, 0, 0)
-                    doc.text('Receipt Attachment', pageWidth - margin, receiptY + 3, { align: 'right' })
-
-                    doc.setFont('helvetica', 'normal')
-                    doc.setFontSize(9)
-                    doc.setTextColor(100, 100, 100)
-                    doc.text(`${request.title}`, pageWidth - margin, receiptY + 10, { align: 'right' })
-
-                    receiptY += 20
-
-                    // Separator line
-                    doc.setDrawColor(0, 0, 0)
-                    doc.setLineWidth(0.5)
-                    doc.line(margin, receiptY, pageWidth - margin, receiptY)
-
-                    receiptY += 15
-
-                    // Try to embed the actual image
-                    try {
-                        const response = await fetch(request.receiptUrl)
-                        const blob = await response.blob()
-                        const base64 = await new Promise<string>((resolve) => {
-                            const reader = new FileReader()
-                            reader.onloadend = () => resolve(reader.result as string)
-                            reader.readAsDataURL(blob)
-                        })
-
-                        // Calculate available space (page height minus margins and footer)
-                        const availableHeight = pageHeight - receiptY - 25
-
-                        // Add image - jsPDF will auto-scale maintaining aspect ratio
-                        doc.addImage(base64, 'JPEG', margin, receiptY, contentWidth, availableHeight, undefined, 'FAST')
-
-                    } catch {
-                        // Fallback to link if image fetch fails
                         doc.setFont('helvetica', 'normal')
-                        doc.setFontSize(10)
+                        doc.setFontSize(9)
+                        doc.setTextColor(100, 100, 100)
+                        doc.text(`${request.title}`, pageWidth - margin, receiptY + 10, { align: 'right' })
+
+                        receiptY += 20
+
+                        // Separator line
+                        doc.setDrawColor(0, 0, 0)
+                        doc.setLineWidth(0.5)
+                        doc.line(margin, receiptY, pageWidth - margin, receiptY)
+
+                        receiptY += 15
+
+                        // Try to embed the actual image
+                        try {
+                            const response = await fetch(receipt.url)
+                            const blob = await response.blob()
+                            const base64 = await new Promise<string>((resolve) => {
+                                const reader = new FileReader()
+                                reader.onloadend = () => resolve(reader.result as string)
+                                reader.readAsDataURL(blob)
+                            })
+
+                            // Calculate available space (page height minus margins and footer)
+                            const availableHeight = pageHeight - receiptY - 25
+
+                            // Add image - jsPDF will auto-scale maintaining aspect ratio
+                            doc.addImage(base64, 'JPEG', margin, receiptY, contentWidth, availableHeight, undefined, 'FAST')
+
+                        } catch {
+                            // Fallback to link if image fetch fails
+                            doc.setFont('helvetica', 'normal')
+                            doc.setFontSize(10)
+                            doc.setTextColor(0, 0, 0)
+                            doc.text('Image could not be loaded. View online:', margin, receiptY + 10)
+
+                            doc.setTextColor(0, 0, 255)
+                            doc.textWithLink(receipt.url, margin, receiptY + 18, { url: receipt.url })
+                        }
+
+                        // Footer for receipt page
+                        doc.setDrawColor(200, 200, 200)
+                        doc.setLineWidth(0.2)
+                        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15)
+
+                        doc.setFont('helvetica', 'normal')
+                        doc.setFontSize(8)
+                        doc.setTextColor(100, 100, 100)
+                        doc.text('1337 Refund Management System', margin, pageHeight - 10)
+                        doc.text(`Page ${2 + i}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
+
+                    } else {
+                        // For PDFs and other files, show link on same page (or new page if out of space, but keeping simple for now)
+                        // If we are on the first page and running out of space, we might need a new page logic, but let's just append links for now or put on new page if it's the first non-image.
+                        // Ideally, non-image receipts should probably just be listed.
+                        // Let's force a new page for clarity and consistency with images
+                        doc.addPage()
+                        let receiptY = margin
+
+                        // Header for receipt page (Same as above)
+                        try {
+                            const response = await fetch('/1337.png')
+                            const blob = await response.blob()
+                            const logoBase64 = await new Promise<string>((resolve) => {
+                                const reader = new FileReader()
+                                reader.onloadend = () => resolve(reader.result as string)
+                                reader.readAsDataURL(blob)
+                            })
+                            doc.addImage(logoBase64, 'PNG', margin, receiptY, 30, 8)
+                        } catch {
+                            doc.setFont('helvetica', 'bold')
+                            doc.setFontSize(20)
+                            doc.text('1337', margin, receiptY + 6)
+                        }
+
+                        doc.setFont('helvetica', 'bold')
+                        doc.setFontSize(14)
                         doc.setTextColor(0, 0, 0)
-                        doc.text('Image could not be loaded. View online:', margin, receiptY + 10)
+                        doc.text(`Receipt Attachment ${i + 1} (PDF)`, pageWidth - margin, receiptY + 3, { align: 'right' })
 
+                        receiptY += 20
+                        doc.setDrawColor(0, 0, 0)
+                        doc.setLineWidth(0.5)
+                        doc.line(margin, receiptY, pageWidth - margin, receiptY)
+                        receiptY += 15
+
+                        doc.setDrawColor(200, 200, 200)
+                        doc.setLineWidth(0.2)
+                        doc.rect(margin, receiptY, contentWidth, 25)
+
+                        doc.setFont('helvetica', 'bold')
+                        doc.setFontSize(9)
+                        doc.setTextColor(100, 100, 100)
+                        doc.text('RECEIPT LINK', margin + 5, receiptY + 7)
+
+                        doc.setFont('helvetica', 'normal')
+                        doc.setFontSize(9)
                         doc.setTextColor(0, 0, 255)
-                        doc.textWithLink(request.receiptUrl, margin, receiptY + 18, { url: request.receiptUrl })
+                        const displayUrl = receipt.url.length > 70
+                            ? receipt.url.substring(0, 67) + '...'
+                            : receipt.url
+                        doc.textWithLink(displayUrl, margin + 5, receiptY + 17, { url: receipt.url })
+
+                        // Footer
+                        doc.setDrawColor(200, 200, 200)
+                        doc.setLineWidth(0.2)
+                        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15)
+
+                        doc.setFont('helvetica', 'normal')
+                        doc.setFontSize(8)
+                        doc.setTextColor(100, 100, 100)
+                        doc.text('1337 Refund Management System', margin, pageHeight - 10)
+                        doc.text(`Page ${2 + i}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
                     }
-
-                    // Footer for receipt page
-                    doc.setDrawColor(200, 200, 200)
-                    doc.setLineWidth(0.2)
-                    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15)
-
-                    doc.setFont('helvetica', 'normal')
-                    doc.setFontSize(8)
-                    doc.setTextColor(100, 100, 100)
-                    doc.text('1337 Refund Management System', margin, pageHeight - 10)
-                    doc.text('Page 2', pageWidth - margin, pageHeight - 10, { align: 'right' })
-
-                } else {
-                    // For PDFs and other files, show link on same page
-                    doc.setDrawColor(200, 200, 200)
-                    doc.setLineWidth(0.2)
-                    doc.rect(margin, yPos, contentWidth, 25)
-
-                    doc.setFont('helvetica', 'bold')
-                    doc.setFontSize(9)
-                    doc.setTextColor(100, 100, 100)
-                    doc.text('RECEIPT ATTACHMENT (PDF)', margin + 5, yPos + 7)
-
-                    doc.setFont('helvetica', 'normal')
-                    doc.setFontSize(9)
-                    doc.setTextColor(0, 0, 255)
-                    const displayUrl = request.receiptUrl.length > 70
-                        ? request.receiptUrl.substring(0, 67) + '...'
-                        : request.receiptUrl
-                    doc.textWithLink(displayUrl, margin + 5, yPos + 17, { url: request.receiptUrl })
                 }
             }
 
@@ -479,20 +530,20 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
     return (
         <div style={{ maxWidth: '64rem', margin: '0 auto' }} ref={printRef}>
             {/* Header */}
-            <div style={{ 
-                display: 'flex', 
-                alignItems: 'flex-start', 
-                gap: '1rem', 
-                marginBottom: '2rem', 
+            <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '1rem',
+                marginBottom: '2rem',
                 padding: '0 0.5rem' // Mobile padding
             }}>
                 {/* Title and Status Section */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <h1 style={{ 
-                            fontSize: '1.25rem', 
-                            fontWeight: 600, 
-                            color: '#18181b', 
+                        <h1 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 600,
+                            color: '#18181b',
                             letterSpacing: '-0.025em',
                             margin: 0,
                             lineHeight: 1.3,
@@ -505,7 +556,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                             <StatusBadge status={status} />
                         </div>
                     </div>
-                    
+
                     {/* Subtitle with key info */}
                     <div style={{
                         display: 'flex',
@@ -523,7 +574,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                     </div>
                 </div>
             </div>
-            
+
             {/* Action Buttons Bar - Separate from header for better mobile UX */}
             <div style={{
                 display: 'flex',
@@ -567,8 +618,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                         }
                                     }}
                                 >
-                                    {isPending ? 
-                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                    {isPending ?
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> :
                                         <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
                                     Reject
@@ -601,8 +652,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                         }
                                     }}
                                 >
-                                    {isPending ? 
-                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                    {isPending ?
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> :
                                         <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
                                     Approve
@@ -644,13 +695,13 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     }}
                                     title={status === 'PENDING_RECEIPTS' ? 'Cannot reject while waiting for student to upload receipt' : 'Reject receipt and request re-upload'}
                                 >
-                                    {isPending ? 
-                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                    {isPending ?
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> :
                                         <XCircle style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
                                     Reject Receipt
                                 </button>
-                                
+
                                 {/* Request More Button */}
                                 <button
                                     onClick={handleRequestMore}
@@ -681,13 +732,13 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                     }}
                                     title="Request additional receipts from student"
                                 >
-                                    {isPending ? 
-                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                    {isPending ?
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> :
                                         <Plus style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
                                     Request More
                                 </button>
-                                
+
                                 {/* Verify & Pay Button */}
                                 <button
                                     onClick={handleVerifyPay}
@@ -717,8 +768,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                         }
                                     }}
                                 >
-                                    {isPending ? 
-                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> : 
+                                    {isPending ?
+                                        <Loader2 style={{ width: '0.875rem', height: '0.875rem' }} className="animate-spin" /> :
                                         <CheckCircle2 style={{ width: '0.875rem', height: '0.875rem' }} />
                                     }
                                     Verify & Pay
@@ -727,7 +778,7 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                         )}
                     </>
                 )}
-                
+
                 {/* Utility Buttons - Right side */}
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
                     {/* Delete button - show for staff only on non-paid requests */}
@@ -1397,8 +1448,8 @@ export function RequestDetailsView({ request: initialRequest, isStaff = false }:
                                 </p>
                             </div>
                         </div>
-                        
-                        <div style={{ 
+
+                        <div style={{
                             padding: '1rem',
                             backgroundColor: '#fafafa',
                             borderRadius: '0.5rem',

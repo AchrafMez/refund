@@ -52,7 +52,7 @@ export async function getRefunds(params?: PaginationParams): Promise<PaginatedRe
             orderBy: { createdAt: 'desc' },
             skip: getSkip(page, pageSize),
             take: pageSize,
-            include: { receipts: true, certificate: true }             
+            include: { receipts: true, certificate: true }
         }),
         prisma.refundRequest.count({
             where: { userId: session.user.id }
@@ -99,7 +99,7 @@ export async function createCertificate(data: {
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== 'STAFF' )){
+    if (!currentUser || (currentUser.role !== 'STAFF')) {
         throw new Error("Unauthorized");
     }
 
@@ -131,7 +131,7 @@ export async function deleteCertificate(id: string) {
         select: { role: true }
     })
 
-    if (!currentUser || (currentUser.role !== 'STAFF')){
+    if (!currentUser || (currentUser.role !== 'STAFF')) {
         throw new Error("Unauthorized");
     }
 
@@ -265,7 +265,7 @@ export async function createEstimate(data: {
     description: string;
     amount: number;
     type: "EQUIPMENT" | "CERTIFICATION" | "TRAVEL" | "OTHER";
-    receiptUrl?: string;
+    receiptUrls?: string[];
     certificateId?: string;
     targetDate?: Date;
     departure?: string;
@@ -285,7 +285,7 @@ export async function createEstimate(data: {
         select: { role: true }
     })
 
-    const isStaff = user?.role === "STAFF" 
+    const isStaff = user?.role === "STAFF"
     const status = isStaff ? "VERIFIED_READY" : "ESTIMATED"
 
     let finalAmount = data.amount;
@@ -315,12 +315,12 @@ export async function createEstimate(data: {
             departure: data.departure,
             destination: data.destination,
             invoiceAddressedTo: data.invoiceAddressedTo,
-            ...(data.receiptUrl ? {
+            ...(data.receiptUrls && data.receiptUrls.length > 0 ? {
                 receipts: {
-                    create: {
-                        url: data.receiptUrl,
+                    create: data.receiptUrls.map(url => ({
+                        url: url,
                         amount: 0
-                    }
+                    }))
                 }
             } : {})
         }
@@ -903,7 +903,7 @@ export async function deleteRefundRequest(requestId: string, reason?: string) {
 
         // Delete notifications related to this request
         await prisma.notification.deleteMany({
-            where: { 
+            where: {
                 OR: [
                     { title: { contains: request.title } },
                     { message: { contains: requestId } }
@@ -918,14 +918,14 @@ export async function deleteRefundRequest(requestId: string, reason?: string) {
 
         // Log the deletion
         await logActivity(
-            session.user.id, 
-            session.user.name || session.user.email || "Unknown", 
+            session.user.id,
+            session.user.name || session.user.email || "Unknown",
             AuditAction.UPDATE, // Using UPDATE as closest action type
-            requestId, 
-            { 
+            requestId,
+            {
                 action: "DELETE",
                 requestTitle: request.title,
-                requestAmount: request.amountEst 
+                requestAmount: request.amountEst
             }
         )
 

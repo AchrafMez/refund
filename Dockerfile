@@ -21,6 +21,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build && npm run build:server
 
+# Production dependencies stage
+FROM base AS prod-deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY prisma ./prisma/
+RUN npm ci --omit=dev --ignore-scripts
+RUN npx prisma generate
+
 FROM base AS runner
 WORKDIR /app
 
@@ -40,8 +48,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy production dependencies (ensures socket.io and others are present)
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 COPY --chown=nextjs:nodejs scripts/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
