@@ -35,3 +35,7 @@ Thumbs.db
 prisma/*.db
 prisma/*.db-journal
 scripts/MIGRATION_COMMANDS.md
+
+# Uploads
+/public/uploads/*
+!/public/uploads/.gitkeep
